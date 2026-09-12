@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import SwiftUI
 import os
 
@@ -26,6 +27,10 @@ import os
     @ObservationIgnored let limiter: RequestLimiter
     /// The Gmail REST client. Construction only in `init`; no network until a call is made.
     @ObservationIgnored let gmail: GmailClient
+    /// The one `DatabasePool` of the process (WAL). Opened in launch step 2; never replaced (`reset` wipes in place).
+    @ObservationIgnored let db: DatabasePool
+    /// The directory holding the database file (temporary when testing).
+    @ObservationIgnored let databaseDirectory: URL
 
     /// Injected by tests (module 14) before constructing an environment: `[StubURLProtocol.self]`. The default blocks
     /// the network in the test host so a launch can never reach Gmail.
@@ -49,7 +54,13 @@ import os
     ///
     /// Forbidden in this initializer: AppAuth, any network call, `WKWebView`, `UNUserNotificationCenter`,
     /// `BGTaskScheduler`, and NotificationCenter observers.
-    init(testing: Bool = AppEnvironment.isTestingProcess) {
+    convenience init(testing: Bool = AppEnvironment.isTestingProcess) {
+        self.init(testing: testing, databaseDirectory: nil)
+    }
+
+    /// Designated initializer. `databaseDirectory` (tests only): open that directory instead of a fresh temporary
+    /// one, so a test can pre-seed `syncState` and check launch routing.
+    init(testing: Bool, databaseDirectory providedDirectory: URL?) {
         isTesting = testing
         coldStart = Log.begin(.coldStartToList)
 
@@ -63,11 +74,32 @@ import os
         }
 
         settings = SettingsStore(defaults: defaults)
-        // [06] db = Database.open(directory:) — openInMemory() when isTesting
+
+        // Launch step 2: open the WAL pool (migrate on first launch). Corrupt file → rebuild once.
+        let dir: URL
+        let pool: DatabasePool
+        if let providedDirectory {
+            dir = providedDirectory
+            pool = try! AppDatabase.open(directory: providedDirectory)
+        } else if testing {
+            pool = try! AppDatabase.openTemporary()
+            dir = URL(fileURLWithPath: pool.path).deletingLastPathComponent()
+        } else {
+            dir = try! AppDatabase.defaultDirectory()
+            do {
+                pool = try AppDatabase.open(directory: dir)
+            } catch {
+                Log.db.error("open failed: \(String(describing: error), privacy: .public) — destroying and recreating")
+                try? AppDatabase.destroy(directory: dir)
+                pool = try! AppDatabase.open(directory: dir)
+            }
+        }
+        db = pool
+        databaseDirectory = dir
+
         let keychainAccount = testing ? OAuthConfig.testingKeychainAccount : OAuthConfig.keychainAccount
         let hasItem = Keychain.exists(account: keychainAccount)
-        // [06] replaces with: try? db.read { try SyncStateRepository.get($0, .accountEmail) }
-        let cachedEmail: String? = nil
+        let cachedEmail: String? = try? pool.read { try SyncStateRepository.get($0, .accountEmail) }
         let relay = NeedsReauthRelay()
         let tokens = AppAuthTokenProvider(keychainAccount: keychainAccount, onNeedsReauth: { relay.fire() })
         let oauthConfig = OAuthConfig.fromInfoPlist()
@@ -98,7 +130,14 @@ import os
         auth.hooks.loginHint = { [settings] in settings.settings.lastSignedInEmail }
         auth.hooks.rememberEmail = { [settings] email in settings.update { $0.lastSignedInEmail = email } }
         auth.hooks.fetchProfileEmail = { [gmail] in try await gmail.getProfile().emailAddress }
-        // [06][08] auth.hooks.wipeAccountData = { … close pool, Database.destroy, reopen, purge caches, webHost.recycle() … }
+        // 08 appends its cache purge + webHost.recycle() to this closure.
+        auth.hooks.wipeAccountData = { [db] in
+            await Task.detached {
+                do { try AppDatabase.reset(db) } catch {
+                    Log.db.error("reset failed: \(String(describing: error), privacy: .public)")
+                }
+            }.value
+        }
         // [07] auth.hooks.prepareSignOut = { … cancel + await sync/drain … } ; auth.hooks.didSignIn = { Task { await sync.run(.launch) } }
 
         Log.ui.debug("AppEnvironment ready testing=\(testing, privacy: .public)")
