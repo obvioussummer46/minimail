@@ -33,9 +33,9 @@ final class SettingsStoreTests: XCTestCase {
         let data = try XCTUnwrap(defaults.data(forKey: SettingsStore.key))
         XCTAssertEqual(
             String(decoding: data, as: UTF8.self),
-            #"{"composeStyle":{"colorHex":"#000000","family":"helvetica","sizePx":14},"inboxPageSize":100,"#
-                + #""loadRemoteImages":false,"markReadOnOpen":true,"schemaVersion":1,"showBadge":false,"#
-                + #""signatureEnabled":true,"signatureHTML":"","themeChoice":"dark"}"#
+            ##"{"composeStyle":{"colorHex":"#000000","family":"helvetica","sizePx":14},"inboxPageSize":100,"##
+                + ##""loadRemoteImages":false,"markReadOnOpen":true,"schemaVersion":1,"showBadge":false,"##
+                + ##""signatureEnabled":true,"signatureHTML":"","themeChoice":"dark"}"##
         )
         XCTAssertEqual(SettingsStore(defaults: defaults).settings.themeChoice, .dark)
     }

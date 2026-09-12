@@ -61,8 +61,10 @@ final class MIMEBuilderTests: XCTestCase {
             .map { String($0.prefix(while: { $0 != ":" })) }
         XCTAssertEqual(
             fields,
-            ["From", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References", "MIME-Version",
-             "Content-Type"]
+            [
+                "From", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References",
+                "MIME-Version", "Content-Type",
+            ]
         )
         XCTAssertTrue(output.contains("From: Max Mustermann <max.mustermann@newtelco.de>\r\n"))
         XCTAssertTrue(output.contains("Date: Fri, 11 Sep 2026 10:00:00 +0200\r\n"))

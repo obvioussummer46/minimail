@@ -66,7 +66,7 @@ final class ComposeStyleTests: XCTestCase {
     }
 
     func testDecodeTolerant() throws {
-        let json = #"{"family":"comic","sizePx":40,"colorHex":"#ABCDEF"}"#
+        let json = ##"{"family":"comic","sizePx":40,"colorHex":"#ABCDEF"}"##
         let style = try JSONDecoder().decode(ComposeStyle.self, from: Data(json.utf8))
         XCTAssertEqual(style.family, .helvetica)
         XCTAssertEqual(style.sizePx, 18)
@@ -89,7 +89,7 @@ final class ComposeStyleTests: XCTestCase {
         let data = try encoder.encode(ComposeStyle())
         XCTAssertEqual(
             String(decoding: data, as: UTF8.self),
-            #"{"colorHex":"#000000","family":"helvetica","sizePx":14}"#
+            ##"{"colorHex":"#000000","family":"helvetica","sizePx":14}"##
         )
     }
 
