@@ -4,9 +4,9 @@ Running record of deviations from the specs and of things the specs left unverif
 
 ## Environment caveat for module 01
 
-The container this code was written in has **no Swift toolchain** and the proxy blocks `download.swift.org`,
-so nothing below has been compiled or run. Every task in module 01 is written but **unverified**. First thing
-to do on a Mac:
+The container this code was written in has **no Swift toolchain** and the proxy blocks `download.swift.org`.
+Verification therefore happens in CI rather than locally; see "Verification status" at the end of this file.
+Everything in module 01 is now green there. To reproduce on a Mac:
 
 ```sh
 make core-test     # MailCore + MailHTML, also works on Linux with a Swift 6.1 toolchain
@@ -15,7 +15,7 @@ make test-app      # expects 42 passing tests
 make lint
 ```
 
-Expect to fix compile errors on the first pass. The likely spots are listed under "Risk list" below.
+The risk list below is kept for the record; every item in it has since been settled by CI except where noted.
 
 ## 01 project setup
 
@@ -48,8 +48,9 @@ Expect to fix compile errors on the first pass. The likely spots are listed unde
 
 ### Not done
 
-- T01.9 simulator smoke: needs a Mac with a simulator.
-- Acceptance criteria 2, 3, 4, 5, 6, 8, 9: all need a Mac or GitHub Actions.
+- T01.9 simulator smoke: the app builds and its tests run on the simulator in CI, but nobody has looked at
+  the screen yet. The light and dark screenshots still need a human eye.
+- Acceptance criterion 6, the launch-screen colour and the absence of a white flash: needs that same eye.
 
 ## 02 MailCore MIME
 
@@ -100,8 +101,9 @@ the MailCore package on an Ubuntu runner in about 25 seconds; the `ios` job runs
 the app tests on a macOS runner. Read failures with the GitHub Actions API rather than downloading the log
 archive, which the sandbox proxy blocks.
 
-**Green as of commit `2c454b7`:** the `core` job. 149 MailCore and MailHTML tests pass on Linux. That covers
-all of modules 02 and 03 plus `ComposeStyle`.
+**Fully green as of commit `ca4502b`:** both jobs. 149 MailCore and MailHTML tests pass on Linux and again
+on macOS, and 42 app tests pass on the iPhone 17 simulator. Lint is clean. Modules 01, 02 and 03 are
+verified, not merely written.
 
 ### What the first four CI runs actually found
 
