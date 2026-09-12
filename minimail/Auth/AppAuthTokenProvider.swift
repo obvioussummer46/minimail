@@ -209,8 +209,10 @@ actor AppAuthTokenProvider: TokenProvider {
 
 /// AppAuth calls its delegates on arbitrary threads; this object hops to the actor. `nonisolated` so the ObjC
 /// callbacks carry no MainActor assumption.
-private final class StateDelegate: NSObject, OIDAuthStateChangeDelegate, OIDAuthStateErrorDelegate, Sendable {
-    private weak var owner: AppAuthTokenProvider?
+nonisolated private final class StateDelegate: NSObject, OIDAuthStateChangeDelegate, OIDAuthStateErrorDelegate,
+    Sendable
+{
+    private nonisolated(unsafe) weak var owner: AppAuthTokenProvider?
 
     init(owner: AppAuthTokenProvider) {
         self.owner = owner

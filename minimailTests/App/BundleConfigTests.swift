@@ -11,7 +11,7 @@ nonisolated final class BundleConfigTests: XCTestCase {
 
     @MainActor
     func testBackgroundKeys() {
-        XCTAssertEqual(info["BGTaskSchedulerPermittedIdentifiers"] as? [String], ["de.newtelco.minimail.refresh"])
+        XCTAssertEqual(info["BGTaskSchedulerPermittedIdentifiers"] as? [String], ["com.minimail.refresh"])
         XCTAssertEqual(info["UIBackgroundModes"] as? [String], ["fetch"])
     }
 

@@ -24,7 +24,7 @@ struct SignInScreen: View {
             Text("minimail")
                 .font(.largeTitle.bold())
                 .foregroundStyle(themeTokens.text)
-            Text("Gmail for newtelco.de")
+            Text("A minimal Gmail client")
                 .font(.subheadline)
                 .foregroundStyle(themeTokens.secondaryText)
             Spacer()

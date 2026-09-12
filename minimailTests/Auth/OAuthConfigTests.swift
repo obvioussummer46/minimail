@@ -21,7 +21,7 @@ nonisolated final class OAuthConfigTests: XCTestCase {
         XCTAssertEqual(config.tokenEndpoint.absoluteString, "https://oauth2.googleapis.com/token")
         XCTAssertEqual(config.revocationEndpoint.absoluteString, "https://oauth2.googleapis.com/revoke")
         XCTAssertEqual(config.scopes, ["https://www.googleapis.com/auth/gmail.modify"])
-        XCTAssertEqual(config.hostedDomain, "newtelco.de")
+        XCTAssertNil(config.hostedDomain)
     }
 
     func testPlaceholderDetection() {

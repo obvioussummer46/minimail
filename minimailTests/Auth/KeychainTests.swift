@@ -12,7 +12,7 @@ nonisolated final class KeychainTests: XCTestCase {
     }
 
     func testServiceConstant() {
-        XCTAssertEqual(Keychain.service, "de.newtelco.minimail")
+        XCTAssertEqual(Keychain.service, "com.minimail")
     }
 
     func testGetMissingIsNil() throws {

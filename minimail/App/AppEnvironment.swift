@@ -14,12 +14,22 @@ import os
     @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored let settings: SettingsStore
     @ObservationIgnored let theme: ThemeStore
+    /// Read once from `Info.plist` in `init` (a dictionary lookup; no I/O beyond the already-loaded bundle plist).
+    @ObservationIgnored let oauthConfig: OAuthConfig
+    /// Constructed in `init` (no I/O). `load()` runs in `startDeferredWork()`.
+    @ObservationIgnored let tokens: AppAuthTokenProvider
+    /// Routing state computed in `init` from `Keychain.exists` + `cachedEmail`.
+    @ObservationIgnored let auth: AuthStore
+
+    /// `OAuthConfig.testingKeychainAccount` when `isTesting`, else `OAuthConfig.keychainAccount` — so the test host
+    /// never sees a developer's real item.
+    var keychainAccount: String { tokens.keychainAccount }
 
     /// Open interval for cold start, ended once by `markFirstListPaint()`.
     @ObservationIgnored private var coldStart: OSSignpostIntervalState?
     private(set) var deferredWorkStarted = false
 
-    static let testingSuiteName = "de.newtelco.minimail.testing"
+    static let testingSuiteName = "com.minimail.testing"
 
     static var isTestingProcess: Bool {
         ProcessInfo.processInfo.environment["MINIMAIL_TESTING"] == "1"
@@ -44,9 +54,26 @@ import os
 
         settings = SettingsStore(defaults: defaults)
         // [06] db = Database.open(directory:) — openInMemory() when isTesting
-        // [04] Keychain existence check, syncState.accountEmail read, AuthStore(...)
+        let keychainAccount = testing ? OAuthConfig.testingKeychainAccount : OAuthConfig.keychainAccount
+        let hasItem = Keychain.exists(account: keychainAccount)
+        let cachedEmail: String? = nil  // [06] replaces with: try? db.read { try SyncStateRepository.get($0, .accountEmail) }
+        let relay = NeedsReauthRelay()
+        let tokens = AppAuthTokenProvider(keychainAccount: keychainAccount, onNeedsReauth: { relay.fire() })
+        let oauthConfig = OAuthConfig.fromInfoPlist()
+        let auth = AuthStore(tokens: tokens, config: oauthConfig, hasKeychainItem: hasItem, cachedEmail: cachedEmail)
+        relay.auth = auth
+        self.tokens = tokens
+        self.oauthConfig = oauthConfig
+        self.auth = auth
         theme = ThemeStore(settings: settings)
         // [05][07][08] GmailClient, SyncStatus, SyncEngine, Outbox, MailActions, WebViewHost — construction only
+
+        // Hooks owned by 01's objects (05/06/07/08 add theirs at the marked points).
+        auth.hooks.loginHint = { [settings] in settings.settings.lastSignedInEmail }
+        auth.hooks.rememberEmail = { [settings] email in settings.update { $0.lastSignedInEmail = email } }
+        // [05] auth.hooks.fetchProfileEmail = { [gmail] in try await gmail.getProfile().emailAddress }
+        // [06][08] auth.hooks.wipeAccountData = { … close pool, Database.destroy, reopen, purge caches, webHost.recycle() … }
+        // [07] auth.hooks.prepareSignOut = { … cancel + await sync/drain … } ; auth.hooks.didSignIn = { Task { await sync.run(.launch) } }
 
         Log.ui.debug("AppEnvironment ready testing=\(testing, privacy: .public)")
     }
@@ -59,7 +86,8 @@ import os
 
         await Task.yield()
         await Task.yield()
-        // [04] await tokens.load()
+        let loaded = await tokens.load()
+        auth.handleTokenLoad(succeeded: loaded)
         // [07] release in-flight outbox rows, then await sync.run(.launch)
 
         if isTesting { return }

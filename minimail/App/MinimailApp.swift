@@ -11,7 +11,7 @@ struct MinimailApp: App {
                 .environment(env)
                 .environment(env.theme)
                 .environment(env.settings)
-            // Module 04 adds .onOpenURL { env.auth.resume(url: $0) }
+                .onOpenURL { url in _ = env.auth.resume(url: url) }
             // Module 07 adds .backgroundTask(.appRefresh(...)) and .onChange(of: scenePhase)
         }
     }

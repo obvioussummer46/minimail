@@ -71,11 +71,10 @@ extension AuthError: LocalizedError {
         case (false, nil):
             state = .signedOut
         }
-        Log.auth.notice(
-            "routing: keychain=\(hasKeychainItem, privacy: .public) "
-                + "cachedEmail=\(cachedEmail != nil, privacy: .public) "
-                + "→ \(String(describing: self.state), privacy: .public)"
-        )
+        let routing =
+            "routing: keychain=\(hasKeychainItem) cachedEmail=\(cachedEmail != nil) "
+            + "→ \(String(describing: state))"
+        Log.auth.notice("\(routing, privacy: .public)")
     }
 
     // MARK: Sign-in
@@ -175,7 +174,7 @@ extension AuthError: LocalizedError {
             responseType: OIDResponseTypeCode,
             additionalParameters: params.isEmpty ? nil : params
         )
-        guard let agent = OIDExternalUserAgentIOS(presentingViewController: vc, prefersEphemeralSession: false) else {
+        guard let agent = OIDExternalUserAgentIOS(presenting: vc, prefersEphemeralSession: false) else {
             throw AuthError.flowFailed("cannot create external user agent")
         }
         return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<OIDAuthState, any Error>) in
@@ -206,7 +205,7 @@ extension AuthError: LocalizedError {
     /// Architecture §5.4. Idempotent: no-op when already `.signedOut`.
     func signOut() async {
         guard state != .signedOut else { return }
-        currentFlow?.cancel()
+        await currentFlow?.cancel()
         currentFlow = nil
         await hooks.prepareSignOut()
         await tokens.revokeAndClear()

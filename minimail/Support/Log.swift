@@ -10,7 +10,7 @@ import os
 /// `.notice`; failures at `.error` with the error's description. Identifiers are `%{public}`, addresses,
 /// subjects and snippets are `%{private}`. Tokens, headers and message bodies are never logged.
 nonisolated enum Log {
-    static let subsystem = "de.newtelco.minimail"
+    static let subsystem = "com.minimail"
 
     static let auth = Logger(subsystem: subsystem, category: "auth")
     static let net = Logger(subsystem: subsystem, category: "net")

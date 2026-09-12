@@ -4,7 +4,8 @@ DD      := .build/DerivedData
 SPM     := .build/SourcePackages
 RESULTS := .build/results
 SIM_DEST ?= platform=iOS Simulator,name=iPhone 17
-NOSIGN  := CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+# Ad-hoc signing (no team needed) so simulator keychain access works in tests; NOSIGN name kept for call sites.
+NOSIGN  := CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=-
 XCB     := xcbeautify --renderer $(if $(GITHUB_ACTIONS),github-actions,terminal)
 
 .PHONY: core-test core-test-nohtml gen build test-app test-one lint format clean

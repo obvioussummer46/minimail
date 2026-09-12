@@ -2,7 +2,7 @@
 import Foundation
 
 /// OAuth client facts (architecture §2.4, §5.1 step 1). Value type; safe to hand to actors.
-struct OAuthConfig: Sendable {
+nonisolated struct OAuthConfig: Sendable {
     let clientID: String
     let redirectURL: URL
     let authorizationEndpoint = URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!
@@ -10,8 +10,8 @@ struct OAuthConfig: Sendable {
     let revocationEndpoint = URL(string: "https://oauth2.googleapis.com/revoke")!
     let scopes = ["https://www.googleapis.com/auth/gmail.modify"]
 
-    /// Sent as the optional `hd` authorization parameter (architecture §5.1; UNVERIFIED for the native flow).
-    let hostedDomain: String? = "newtelco.de"
+    /// Optional `hd` authorization parameter. `nil` — any Google account may sign in (no domain restriction).
+    let hostedDomain: String? = nil
     /// Info.plist key read by `fromInfoPlist()` (`GoogleClientID: $(GOOGLE_CLIENT_ID)`).
     static let infoPlistKey = "GoogleClientID"
     /// Keychain account of the archived `OIDAuthState`.

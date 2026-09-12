@@ -5,7 +5,7 @@ import Security
 /// All functions are synchronous and block the calling thread (Security framework); only `exists` may run on
 /// main (< 5 ms, attributes only).
 nonisolated enum Keychain {
-    static let service = "de.newtelco.minimail"
+    static let service = "com.minimail"
 
     /// `SecItemCopyMatching` with `kSecReturnAttributes: true`, `kSecMatchLimit: kSecMatchLimitOne` (no data
     /// decrypt). `errSecSuccess` → true; `errSecItemNotFound` → false; `errSecInteractionNotAllowed` → true
