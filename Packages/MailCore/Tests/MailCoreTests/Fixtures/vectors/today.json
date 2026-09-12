@@ -1,0 +1,9 @@
+{"cases":[
+ {"name":"berlin-normal",    "tz":"Europe/Berlin",    "now":"2026-09-11T13:00:00Z", "startMs":1789077600000, "endMs":1789164000000},
+ {"name":"berlin-dst-start", "tz":"Europe/Berlin",    "now":"2026-03-29T12:00:00Z", "startMs":1774738800000, "endMs":1774821600000},
+ {"name":"berlin-dst-end",   "tz":"Europe/Berlin",    "now":"2026-10-25T12:00:00Z", "startMs":1792879200000, "endMs":1792969200000},
+ {"name":"auckland-dst-start","tz":"Pacific/Auckland","now":"2026-09-27T05:00:00Z", "startMs":1790424000000, "endMs":1790506800000},
+ {"name":"utc",              "tz":"UTC",              "now":"2026-01-01T00:00:00Z", "startMs":1767225600000, "endMs":1767312000000},
+ {"name":"berlin-just-before-midnight","tz":"Europe/Berlin","now":"2026-09-11T21:59:59.999Z","startMs":1789077600000,"endMs":1789164000000},
+ {"name":"berlin-midnight",  "tz":"Europe/Berlin",    "now":"2026-09-11T22:00:00Z", "startMs":1789164000000, "endMs":1789250400000}
+]}
