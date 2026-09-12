@@ -43,6 +43,9 @@ public struct ComposeStyle: Codable, Equatable, Sendable {
 
     /// Inclusive size bounds in CSS px.
     public static let sizeRange: ClosedRange<Int> = 12...18
+    public static let minSizePx = 12
+    public static let maxSizePx = 18
+    public static let defaultColorHex = "#000000"
 
     /// Sizes offered by the Settings picker.
     public static let sizeChoices: [Int] = [12, 13, 14, 15, 16, 18]
@@ -79,7 +82,24 @@ public struct ComposeStyle: Codable, Equatable, Sendable {
         return s.dropFirst().allSatisfy { digits.contains($0) }
     }
 
+    /// Alias of `isValidHex`, kept because module 02's compose code names it this way.
+    public static func isValidColorHex(_ hex: String) -> Bool { isValidHex(hex) }
+
+    /// Lowercases, then validates. Returns nil when the result is not `#rrggbb`.
+    public static func normalizedColorHex(_ hex: String) -> String? {
+        let lowered = hex.lowercased()
+        return isValidHex(lowered) ? lowered : nil
+    }
+
     public init() {}
+
+    /// Clamps the size and normalises the colour, so a caller cannot construct an invalid style.
+    public init(family: Family, sizePx: Int, colorHex: String) {
+        self.init()
+        self.family = family
+        self.sizePx = sizePx
+        self.colorHex = colorHex
+    }
 
     /// Tolerant decoding: every key optional, an unknown `family` raw value falls back to `.helvetica`,
     /// then the property observers clamp and validate. A type mismatch still throws, so that

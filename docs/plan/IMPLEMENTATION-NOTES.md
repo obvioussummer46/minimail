@@ -50,3 +50,24 @@ Expect to fix compile errors on the first pass. The likely spots are listed unde
 
 - T01.9 simulator smoke: needs a Mac with a simulator.
 - Acceptance criteria 2, 3, 4, 5, 6, 8, 9: all need a Mac or GitHub Actions.
+
+## 02 MailCore MIME
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D1 | Test vectors live in JSON fixture files under `Tests/MailCoreTests/Fixtures/vectors/` and tests load them through a `Fixture` helper | Vectors are inline Swift tables in the test files | Every vector the spec lists is covered, but without a compiler a bundle-resource lookup is one more thing that can fail for reasons unrelated to the code under test. Module 14 owns the fixture catalogue and can move them. |
+| D2 | `MIMEBuilderTests.testReplyAllByteExact` compares against `Fixtures/mime/reply-all.eml` | Structural assertions plus a decode round-trip | The pinned `.eml` files do not exist yet, and their exact body strings are in spec §5.2 rather than in the repository. The tests assert header order, both multipart shapes, boundary placement, base64 wrapping and quoted-printable round-trip. |
+| D3 | `ComposeStyle` exposes `minSizePx`, `maxSizePx`, `defaultColorHex`, `isValidColorHex`, `normalizedColorHex` (spec 02) or `sizeRange`, `sizeChoices`, `isValidHex` (spec 01) | Both sets exist | The two specs name the same concepts differently. Keeping both keeps every documented call site compiling. |
+
+### Risk list
+
+1. **`RFC2047.encodeIfNeeded` chunk boundaries.** The greedy scalar packing is written to the spec, but the
+   exact word split for a long non-ASCII subject is only verified by a decode round-trip, not byte for byte.
+2. **`AddressParser` comment and quote handling.** The trickiest code in the module. The obsolete-route,
+   legacy-comment and group forms each have one test; unusual combinations are untested.
+3. **`Quoting.textFromHTML`.** A tag stripper, not a parser. Good enough for quoting, never for rendering.
+4. **`HeaderDate.parse` two-digit years.** 00 to 49 map to 2000s and 50 to 99 to 1900s, as the spec says.
+5. **Byte-exact fixtures.** Until D2 is closed, a Gmail-side rejection of the built message would not be
+   caught by tests. Send one real reply and one real forward early.
