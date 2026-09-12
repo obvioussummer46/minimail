@@ -65,7 +65,7 @@ Emit exactly these, in this order (order is not semantically significant, RFC 53
 | `To:` / `Cc:` | `address-list`, comma-separated `mailbox`es; omit the header if empty (`bcc` may be empty, `to`/`cc` should not be sent empty) | §3.6.3 |
 | `Subject:` | unstructured; non-ASCII ⇒ RFC 2047 encoded-words (§2.4) | §3.6.5 |
 | `Date:` | `date-time` = `[ day-of-week "," ] day month year hour ":" minute [ ":" second ] zone`, e.g. `Fri, 11 Sep 2026 10:00:00 +0200`; "The date and time-of-day SHOULD express local time"; zone `+hhmm`/`-hhmm`; day-of-week MUST match the date | §3.3 |
-| `Message-ID:` | `"<" id-left "@" id-right ">"`; `id-left = dot-atom-text` (no CFWS, no quoted-string); RECOMMENDED that id-right is a domain the generator controls; MUST be globally unique. Use `<UUID@newtelco.de>` (uppercase UUID is fine: `atext` includes A–Z, 0–9, `-`). **Always set it** — you need it locally for the outbox `rfc822msgid:` idempotency check (gmail-api.md §14) | §3.6.4 |
+| `Message-ID:` | `"<" id-left "@" id-right ">"`; `id-left = dot-atom-text` (no CFWS, no quoted-string); RECOMMENDED that id-right is a domain the generator controls; MUST be globally unique. Use `<UUID@example.com>` (uppercase UUID is fine: `atext` includes A–Z, 0–9, `-`). **Always set it** — you need it locally for the outbox `rfc822msgid:` idempotency check (gmail-api.md §14) | §3.6.4 |
 | `In-Reply-To:` / `References:` | replies only, see 1.4 | §3.6.4 |
 | `MIME-Version: 1.0` | "Messages composed in accordance with this document MUST include such a header field, with the following verbatim text: `MIME-Version: 1.0`"; required at the top level only, not per body part | RFC 2045 §4 |
 | `Content-Type:` | `multipart/alternative; boundary="..."` or `multipart/mixed; boundary="..."` (§3) | RFC 2046 §5.1.1 |
@@ -245,7 +245,7 @@ C) only if inline cid: images exist (NOT used by minimail stage 1 — see 3.4):
 |---|---|---|
 | `data:image/png;base64,…` URI in `<img src>` | **No** | Gmail web/mobile do not render `data:` images (shows a broken image or the raw text): **[SNIPPET: support.google.com/mail/thread/120618835 "why is BASE64 image not rendering through gmail website while it is through outlook", experts-exchange, w3tutorials.net, SuiteCRM#9248, labnol.org "Gmail does not support base64 images in HTML emails"]**. Outlook/Apple Mail do render them. Not byte-verified against a Google doc, but consistently reported since ~2016. |
 | `cid:` + `multipart/related` | Works everywhere, including Gmail | Every reply/forward becomes structure C (3.1) with an extra ~30–100 KB base64 part; the image shows as an attachment in some clients (Gmail marks it `Content-Disposition: attachment` itself); adds parser and builder complexity. Reasonable **stage-2** option if the owner wants a logo that renders with remote images blocked. |
-| Hosted `https://www.newtelco.de/…/logo.png` | **Recommended for stage 1** | Zero MIME complexity; Gmail proxies and shows hosted images by default; Gmail's own signature editor only accepts a web URL or a Drive image **[SNIPPET: support.google.com/mail/answer/8395 — blocked, UNVERIFIED wording]**; the `sendAs.signature` HTML from Gmail will already contain such URLs. Downsides: recipients with "block remote images" see alt text (use `alt=""` or the company name), and HTTPS is mandatory (Gmail blocks `http:` images **[SNIPPET]**). |
+| Hosted `https://www.example.com/…/logo.png` | **Recommended for stage 1** | Zero MIME complexity; Gmail proxies and shows hosted images by default; Gmail's own signature editor only accepts a web URL or a Drive image **[SNIPPET: support.google.com/mail/answer/8395 — blocked, UNVERIFIED wording]**; the `sendAs.signature` HTML from Gmail will already contain such URLs. Downsides: recipients with "block remote images" see alt text (use `alt=""` or the company name), and HTTPS is mandatory (Gmail blocks `http:` images **[SNIPPET]**). |
 
 Signature markup convention (what Gmail emits, so quote-strippers/`gmail_signature` detectors behave) **[FIXTURE sample-546.eml, smores-react story]**:
 ```html
@@ -281,7 +281,7 @@ Plain text (exact bytes Gmail web produces; blank line, then the block, then **t
 From: Alice Müller <alice@example.com>
 Date: Thu, Sep 10, 2026 at 9:12 AM
 Subject: Angebot für die Erweiterung
-To: Max Mustermann <max.mustermann@newtelco.de>
+To: Max Mustermann <max.mustermann@example.com>
 Cc: Carol Chen <carol@partner.example>
 
 
@@ -291,7 +291,7 @@ Exact banner: 10 hyphens, space, `Forwarded message`, space, **9** hyphens (`---
 
 HTML (exact skeleton Gmail web emits):
 ```html
-<br><div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">---------- Forwarded message ---------<br>From: <strong class="gmail_sendername" dir="auto">Alice Müller</strong> <span dir="auto">&lt;<a href="mailto:alice@example.com">alice@example.com</a>&gt;</span><br>Date: Thu, Sep 10, 2026 at 9:12 AM<br>Subject: Angebot für die Erweiterung<br>To: Max Mustermann &lt;<a href="mailto:max.mustermann@newtelco.de">max.mustermann@newtelco.de</a>&gt;<br>Cc: Carol Chen &lt;<a href="mailto:carol@partner.example">carol@partner.example</a>&gt;<br></div><br><br>ORIGINAL_HTML_BODY</div>
+<br><div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">---------- Forwarded message ---------<br>From: <strong class="gmail_sendername" dir="auto">Alice Müller</strong> <span dir="auto">&lt;<a href="mailto:alice@example.com">alice@example.com</a>&gt;</span><br>Date: Thu, Sep 10, 2026 at 9:12 AM<br>Subject: Angebot für die Erweiterung<br>To: Max Mustermann &lt;<a href="mailto:max.mustermann@example.com">max.mustermann@example.com</a>&gt;<br>Cc: Carol Chen &lt;<a href="mailto:carol@partner.example">carol@partner.example</a>&gt;<br></div><br><br>ORIGINAL_HTML_BODY</div>
 ```
 (Gmail 2023 fixture uses `<b class="gmail_sendername" dir="auto">`, 2024 fixture `<strong …>`; either is fine.) The forwarded body is **not** inside a `<blockquote>`. The forwarder's note (if any) and the signature come **before** the block.
 
@@ -371,17 +371,17 @@ Original attachments are **not** referenced by id in `messages.send`; the raw me
 
 Both were generated by a script (`/tmp/claude-0/…/scratchpad/gen/gen.py`, output files `reply.eml`, `forward.eml`) and round-tripped through Python's `email` parser (parts decode back to the source strings, PDF bytes identical, `In-Reply-To` absent on the forward). **Every line ends with CRLF**; the rendering below shows `\r\n` as line breaks. The SHA-256 is over the exact CRLF bytes — use it in `MIMEBuilderTests` to pin the builder. The `raw` values are base64url **without** padding (both happen to need exactly one `=` if you emit padded output, since 3035 % 4 == 3 and 3903 % 4 == 3).
 
-Fixed inputs used by both: `Date` frozen; `Message-ID` from fixed UUIDs; boundaries fixed; attribution date `Thu, Sep 10, 2026 at 9:12\u{202F}AM` (**U+202F** before `AM`, shown as `=E2=80=AF`); signature HTML/text as in §3.4; original body HTML `<div dir="ltr">Hallo Max,<div><br></div><div>ist das Angebot für die Erweiterung schon unterwegs?</div><div><br></div><div>Gruß<br>Alice</div></div>` and plain text `Hallo Max,\r\n\r\nist das Angebot für die Erweiterung schon unterwegs?\r\n\r\nGruß\r\nAlice`; original headers `From: Alice Müller <alice@example.com>`, `To: Max Mustermann <max.mustermann@newtelco.de>, bob@example.com`, `Cc: Carol Chen <carol@partner.example>`, `Subject: Angebot für die Erweiterung`, `Message-ID: <CAF=abc123@mail.example.com>`, `References: <older-id@example.com>`, `Date: Thu, 10 Sep 2026 09:12:33 +0200`; self = `max.mustermann@newtelco.de`.
+Fixed inputs used by both: `Date` frozen; `Message-ID` from fixed UUIDs; boundaries fixed; attribution date `Thu, Sep 10, 2026 at 9:12\u{202F}AM` (**U+202F** before `AM`, shown as `=E2=80=AF`); signature HTML/text as in §3.4; original body HTML `<div dir="ltr">Hallo Max,<div><br></div><div>ist das Angebot für die Erweiterung schon unterwegs?</div><div><br></div><div>Gruß<br>Alice</div></div>` and plain text `Hallo Max,\r\n\r\nist das Angebot für die Erweiterung schon unterwegs?\r\n\r\nGruß\r\nAlice`; original headers `From: Alice Müller <alice@example.com>`, `To: Max Mustermann <max.mustermann@example.com>, bob@example.com`, `Cc: Carol Chen <carol@partner.example>`, `Subject: Angebot für die Erweiterung`, `Message-ID: <CAF=abc123@mail.example.com>`, `References: <older-id@example.com>`, `Date: Thu, 10 Sep 2026 09:12:33 +0200`; self = `max.mustermann@example.com`.
 
 ### 7.1 Reply-all (multipart/alternative, HTML + plain, signature, quoted original) — 2276 bytes, `sha256 = b9f8078c1d50352b00f1486624bb2247ec19587ccf388b652aed62da0d1fcbd3`
 
 ```
-From: Max Mustermann <max.mustermann@newtelco.de>
+From: Max Mustermann <max.mustermann@example.com>
 To: =?UTF-8?B?QWxpY2UgTcO8bGxlcg==?= <alice@example.com>, bob@example.com
 Cc: Carol Chen <carol@partner.example>
 Subject: =?UTF-8?B?UmU6IEFuZ2Vib3QgZsO8ciBkaWUgRXJ3ZWl0ZXJ1bmc=?=
 Date: Fri, 11 Sep 2026 10:00:00 +0200
-Message-ID: <7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@newtelco.de>
+Message-ID: <7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@example.com>
 In-Reply-To: <CAF=abc123@mail.example.com>
 References: <older-id@example.com> <CAF=abc123@mail.example.com>
 MIME-Version: 1.0
@@ -400,8 +400,8 @@ Max
 
 --=20
 Max Mustermann
-newtelco GmbH
-https://www.newtelco.de
+Example GmbH
+https://www.example.com
 
 On Thu, Sep 10, 2026 at 9:12=E2=80=AFAM Alice M=C3=BCller <alice@example.co=
 m> wrote:
@@ -421,8 +421,8 @@ Content-Transfer-Encoding: quoted-printable
 ute noch raus.</div><div><br></div><div>Viele Gr=C3=BC=C3=9Fe<br>Max</div><=
 div><br></div><span class=3D"gmail_signature_prefix">-- </span><br><div cla=
 ss=3D"gmail_signature"><div style=3D"font-family:Helvetica,Arial,sans-serif=
-;font-size:13px;color:#222222">Max Mustermann<br>newtelco GmbH<br><a href=
-=3D"https://www.newtelco.de">www.newtelco.de</a></div></div></div><br><div =
+;font-size:13px;color:#222222">Max Mustermann<br>Example GmbH<br><a href=
+=3D"https://www.example.com">www.example.com</a></div></div></div><br><div =
 class=3D"gmail_quote gmail_quote_container"><div dir=3D"ltr" class=3D"gmail=
 _attr">On Thu, Sep 10, 2026 at 9:12=E2=80=AFAM Alice M=C3=BCller &lt;<a hre=
 f=3D"mailto:alice@example.com">alice@example.com</a>&gt; wrote:<br></div><b=
@@ -446,11 +446,11 @@ RnJvbTogTWF4IE11c3Rlcm1hbm4gPG1heC5tdXN0ZXJtYW5uQG5ld3RlbGNvLmRlPg0KVG86ID0_VVRG
 PDF bytes (125 octets, a minimal valid-looking stub): `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n`.
 
 ```
-From: Max Mustermann <max.mustermann@newtelco.de>
-To: Dave Davis <dave@newtelco.de>
+From: Max Mustermann <max.mustermann@example.com>
+To: Dave Davis <dave@example.com>
 Subject: =?UTF-8?B?RndkOiBBbmdlYm90IGbDvHIgZGllIEVyd2VpdGVydW5n?=
 Date: Fri, 11 Sep 2026 10:05:00 +0200
-Message-ID: <0F1E2D3C-4B5A-4968-8778-695A4B3C2D1E@newtelco.de>
+Message-ID: <0F1E2D3C-4B5A-4968-8778-695A4B3C2D1E@example.com>
 References: <older-id@example.com> <CAF=abc123@mail.example.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=_minimail_mixed_0b1c2d3e4f5a6b7c"
@@ -466,14 +466,14 @@ FYI, siehe Anhang.
 
 --=20
 Max Mustermann
-newtelco GmbH
-https://www.newtelco.de
+Example GmbH
+https://www.example.com
 
 ---------- Forwarded message ---------
 From: Alice M=C3=BCller <alice@example.com>
 Date: Thu, Sep 10, 2026 at 9:12=E2=80=AFAM
 Subject: Angebot f=C3=BCr die Erweiterung
-To: Max Mustermann <max.mustermann@newtelco.de>
+To: Max Mustermann <max.mustermann@example.com>
 Cc: Carol Chen <carol@partner.example>
 
 
@@ -492,14 +492,14 @@ Content-Transfer-Encoding: quoted-printable
 14px;color:#1d1d1f">FYI, siehe Anhang.<div><br></div><span class=3D"gmail_s=
 ignature_prefix">-- </span><br><div class=3D"gmail_signature"><div style=3D=
 "font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#222222">Max M=
-ustermann<br>newtelco GmbH<br><a href=3D"https://www.newtelco.de">www.newte=
+ustermann<br>Example GmbH<br><a href=3D"https://www.example.com">www.newte=
 lco.de</a></div></div></div><br><div class=3D"gmail_quote gmail_quote_conta=
 iner"><div dir=3D"ltr" class=3D"gmail_attr">---------- Forwarded message --=
 -------<br>From: <strong class=3D"gmail_sendername" dir=3D"auto">Alice M=C3=
 =BCller</strong> <span dir=3D"auto">&lt;<a href=3D"mailto:alice@example.com=
 ">alice@example.com</a>&gt;</span><br>Date: Thu, Sep 10, 2026 at 9:12=E2=80=
 =AFAM<br>Subject: Angebot f=C3=BCr die Erweiterung<br>To: Max Mustermann &l=
-t;<a href=3D"mailto:max.mustermann@newtelco.de">max.mustermann@newtelco.de<=
+t;<a href=3D"mailto:max.mustermann@example.com">max.mustermann@example.com<=
 /a>&gt;<br>Cc: Carol Chen &lt;<a href=3D"mailto:carol@partner.example">caro=
 l@partner.example</a>&gt;<br></div><br><br><div dir=3D"ltr">Hallo Max,<div>=
 <br></div><div>ist das Angebot f=C3=BCr die Erweiterung schon unterwegs?</d=
@@ -529,24 +529,24 @@ To match Gmail web exactly (recommended, §1.5) insert `In-Reply-To: <CAF=abc123
 
 ## 8. Test vectors
 
-### 8.1 Reply-all recipient computation (self = `max.mustermann@newtelco.de`, alias = `m.mustermann@newtelco.de`)
+### 8.1 Reply-all recipient computation (self = `max.mustermann@example.com`, alias = `m.mustermann@example.com`)
 
 | # | Original headers | Expected reply-all `To` | Expected `Cc` |
 |---|---|---|---|
-| 1 | From: `Alice <alice@example.com>`; To: `max.mustermann@newtelco.de` | `Alice <alice@example.com>` | — |
-| 2 | From: `Alice <alice@example.com>`; To: `Max <max.mustermann@newtelco.de>, Bob <bob@example.com>`; Cc: `carol@partner.example` | `Alice <alice@example.com>, Bob <bob@example.com>` | `carol@partner.example` |
-| 3 | From: `Alice <alice@example.com>`; Reply-To: `Support <support@example.com>`; To: `max.mustermann@newtelco.de, bob@example.com` | `Support <support@example.com>, bob@example.com` | — (Alice is **not** added — Reply-To replaces From) |
-| 4 | From: `alice@example.com`; To: `MAX.MUSTERMANN@newtelco.de, Bob <bob@example.com>`; Cc: `M.Mustermann@NewTelco.de, dave@newtelco.de` | `alice@example.com, Bob <bob@example.com>` | `dave@newtelco.de` (both self spellings removed case-insensitively) |
+| 1 | From: `Alice <alice@example.com>`; To: `max.mustermann@example.com` | `Alice <alice@example.com>` | — |
+| 2 | From: `Alice <alice@example.com>`; To: `Max <max.mustermann@example.com>, Bob <bob@example.com>`; Cc: `carol@partner.example` | `Alice <alice@example.com>, Bob <bob@example.com>` | `carol@partner.example` |
+| 3 | From: `Alice <alice@example.com>`; Reply-To: `Support <support@example.com>`; To: `max.mustermann@example.com, bob@example.com` | `Support <support@example.com>, bob@example.com` | — (Alice is **not** added — Reply-To replaces From) |
+| 4 | From: `alice@example.com`; To: `MAX.MUSTERMANN@example.com, Bob <bob@example.com>`; Cc: `M.Mustermann@example.com, dave@example.com` | `alice@example.com, Bob <bob@example.com>` | `dave@example.com` (both self spellings removed case-insensitively) |
 | 5 | From: `Alice <alice@example.com>`; To: `bob@example.com`; Cc: `Alice <alice@example.com>, bob@example.com` | `Alice <alice@example.com>, bob@example.com` | — (duplicates of To removed; To wins over Cc) |
-| 6 | From: `Alice <alice@example.com>`; Reply-To: `alice@example.com, list@example.com`; To: `max.mustermann@newtelco.de` | `alice@example.com, list@example.com` | — (multi-address Reply-To kept in order, first-seen display name — here none) |
-| 7 | From: `"Müller, Alice" <alice@example.com>`; To: `max.mustermann@newtelco.de` | `"Müller, Alice" <alice@example.com>` (serialised as `=?UTF-8?B?TcO8bGxlciwgQWxpY2U=?= <alice@example.com>`) | — (comma inside quotes must not split) |
-| 8 | From: `=?UTF-8?B?QWxpY2UgTcO8bGxlcg==?= <alice@example.com>`; To: `max.mustermann@newtelco.de` | `Alice Müller <alice@example.com>` (decoded for display; re-encoded on output) | — |
-| 9 | From: `Max Mustermann <max.mustermann@newtelco.de>` (own sent mail); To: `Alice <alice@example.com>, bob@example.com`; Cc: `carol@partner.example` | `Alice <alice@example.com>, bob@example.com` | `carol@partner.example` (self-reply: To = original To, Reply-To ignored) |
-| 10 | From: `Max <max.mustermann@newtelco.de>`; Reply-To: `list@example.com`; To: `alice@example.com` | `alice@example.com` | — (self-reply ignores Reply-To — Google CLI `test_reply_all_to_own_message_ignores_reply_to`) |
-| 11 | From: `Alice <alice@example.com>`; To: `Team: max.mustermann@newtelco.de, bob@example.com;` | `Alice <alice@example.com>, bob@example.com` | — (group flattened, group name dropped) |
+| 6 | From: `Alice <alice@example.com>`; Reply-To: `alice@example.com, list@example.com`; To: `max.mustermann@example.com` | `alice@example.com, list@example.com` | — (multi-address Reply-To kept in order, first-seen display name — here none) |
+| 7 | From: `"Müller, Alice" <alice@example.com>`; To: `max.mustermann@example.com` | `"Müller, Alice" <alice@example.com>` (serialised as `=?UTF-8?B?TcO8bGxlciwgQWxpY2U=?= <alice@example.com>`) | — (comma inside quotes must not split) |
+| 8 | From: `=?UTF-8?B?QWxpY2UgTcO8bGxlcg==?= <alice@example.com>`; To: `max.mustermann@example.com` | `Alice Müller <alice@example.com>` (decoded for display; re-encoded on output) | — |
+| 9 | From: `Max Mustermann <max.mustermann@example.com>` (own sent mail); To: `Alice <alice@example.com>, bob@example.com`; Cc: `carol@partner.example` | `Alice <alice@example.com>, bob@example.com` | `carol@partner.example` (self-reply: To = original To, Reply-To ignored) |
+| 10 | From: `Max <max.mustermann@example.com>`; Reply-To: `list@example.com`; To: `alice@example.com` | `alice@example.com` | — (self-reply ignores Reply-To — Google CLI `test_reply_all_to_own_message_ignores_reply_to`) |
+| 11 | From: `Alice <alice@example.com>`; To: `Team: max.mustermann@example.com, bob@example.com;` | `Alice <alice@example.com>, bob@example.com` | — (group flattened, group name dropped) |
 | 12 | From: `alice@example.com (Alice)`; To: `undisclosed-recipients:;` | `Alice <alice@example.com>` | — (legacy comment used as name; empty group ⇒ nothing) |
-| 13 | From: `Alice <alice@example.com>`; To: `max.mustermann@newtelco.de`; Cc: `max.mustermann@newtelco.de` | `Alice <alice@example.com>` | — |
-| 14 | From: `Max <max.mustermann@newtelco.de>`; To: `max.mustermann@newtelco.de` (note to self) | `Max <max.mustermann@newtelco.de>` | — (last-resort rule: To may not be empty) |
+| 13 | From: `Alice <alice@example.com>`; To: `max.mustermann@example.com`; Cc: `max.mustermann@example.com` | `Alice <alice@example.com>` | — |
+| 14 | From: `Max <max.mustermann@example.com>`; To: `max.mustermann@example.com` (note to self) | `Max <max.mustermann@example.com>` | — (last-resort rule: To may not be empty) |
 | 15 | From: `Alice <alice@example.com>`; To: `bob@example.com,, ,carol@partner.example` (obs-addr-list) | `Alice <alice@example.com>, bob@example.com, carol@partner.example` | — (null members ignored, RFC 5322 §4.4) |
 | 16 | From: `Alice <alice@example.com>`; To: `Bob <@relay.example:bob@example.com>` | `Alice <alice@example.com>, Bob <bob@example.com>` | — (obs-route dropped) |
 
@@ -632,7 +632,7 @@ RFC 2231 filename decoding:
 - QP encoder operates on `Array(text.utf8)`; output ≤ 76 chars per line; encode `=` always, TAB/SPACE only when not last on the line; hex uppercase.
 - Standard base64 with 76-col CRLF wrapping: `Data.base64EncodedString(options: [.lineLength76Characters, .endLineWithCarriageReturn, .endLineWithLineFeed])`. base64url for `raw`: `base64EncodedString()` (no options) then swap `+/` → `-_`, keep `=`.
 - `Date` header: `DateFormatter` with `locale = Locale(identifier: "en_US_POSIX")`, `dateFormat = "EEE, d MMM yyyy HH:mm:ss Z"`, `timeZone = .current`. Attribution date: `dateFormat = "EEE, MMM d, yyyy 'at' h:mm\u{202F}a"` in the same locale.
-- `Message-ID`: `"<\(UUID().uuidString)@newtelco.de>"` (domain = the account's email domain from `getProfile`).
+- `Message-ID`: `"<\(UUID().uuidString)@example.com>"` (domain = the account's email domain from `getProfile`).
 - Header folding: emit `To:`/`Cc:` as `name <addr>,` + CRLF + SPACE + next mailbox when the line would exceed 78; `References:` one msg-id per continuation line if needed.
 - Foundation `Data(base64Encoded:)` requires padding and rejects `-`/`_` — hence the tolerant wrapper in §1.2 (verify with §8.3 vectors; Apple docs were unreachable in this session).
 - Charset conversion: `CFStringConvertIANACharSetNameToEncoding`, `CFStringConvertEncodingToNSStringEncoding`, `String(data:encoding:)` (Apple docs unreachable — API names from memory, verify at compile time).

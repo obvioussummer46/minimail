@@ -282,14 +282,14 @@ final class InboxModel {
 <key>UIBackgroundModes</key>
 <array><string>fetch</string></array>                       <!-- BGAppRefreshTask "requires setting the fetch UIBackgroundModes capability" -->
 <key>BGTaskSchedulerPermittedIdentifiers</key>
-<array><string>de.newtelco.minimail.refresh</string></array> <!-- array of strings; register(...) returns false for unlisted ids -->
+<array><string>com.minimail.refresh</string></array> <!-- array of strings; register(...) returns false for unlisted ids -->
 ```
 Sources: https://developer.apple.com/documentation/backgroundtasks/bgapprefreshtask ; https://developer.apple.com/documentation/bundleresources/information-property-list/bgtaskschedulerpermittedidentifiers ; https://developer.apple.com/documentation/bundleresources/information-property-list/uibackgroundmodes (valid values include `fetch`, `processing`, `remote-notification`, …). In XcodeGen this is `info.properties` + the `com.apple.BackgroundModes` capability is just these plist keys (no entitlement).
 
 ### 3.2 Handler registration — SwiftUI scene modifier (iOS 16+) `[A]` https://developer.apple.com/documentation/swiftui/scene/backgroundtask(_:action:)
 ```swift
 WindowGroup { RootView() }
-    .backgroundTask(.appRefresh("de.newtelco.minimail.refresh")) {   // BackgroundTask.appRefresh(_:) -> BackgroundTask<Void, Void>
+    .backgroundTask(.appRefresh("com.minimail.refresh")) {   // BackgroundTask.appRefresh(_:) -> BackgroundTask<Void, Void>
         await BackgroundRefresh.run()       // "The system considers the task completed when the action closure … returns."
     }
 ```
@@ -298,7 +298,7 @@ Doc: "If the action closure has not returned when the task runs out of time to c
 ### 3.3 Scheduling (`[A]` BGTaskRequest/BGTaskScheduler pages)
 ```swift
 func scheduleRefresh() {
-    let request = BGAppRefreshTaskRequest(identifier: "de.newtelco.minimail.refresh")   // init(identifier:)
+    let request = BGAppRefreshTaskRequest(identifier: "com.minimail.refresh")   // init(identifier:)
     request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)   // "the system doesn't guarantee launching the task at the specified date, but only that it won't begin sooner"; nil = no delay
     Task.detached {                                                    // iOS 27 doc: "Do not call this method from the main thread"
         if #available(iOS 27, *) {
@@ -312,7 +312,7 @@ func scheduleRefresh() {
 - `submit(_:)` is **deprecated in iOS 27.0**; replacement `submitTaskRequest(_:completionHandler:)` / `submitTaskRequest(_:) async throws` (iOS 27+). Both: "Submitting a task request for an unexecuted task that's already in the queue replaces the previous task request. There can be a total of **1 refresh task** and 10 processing tasks scheduled at any time."
 - Call `scheduleRefresh()` when `scenePhase == .background` and again at the start of the background handler (the request is consumed when it runs).
 - Other API: `BGTaskScheduler.shared.cancel(taskRequestWithIdentifier:)`, `cancelAllTaskRequests()`, `getPendingTaskRequests(completionHandler:)`. UIKit-style tasks need `task.expirationHandler` and `task.setTaskCompleted(success:)` ("Not calling … before the time for the task expires may result in the system killing your app") — not needed with the SwiftUI modifier.
-- Debug trigger from LLDB while paused on device (from Apple's "Refreshing and Maintaining Your App Using Background Tasks" sample project; exact selector **UNVERIFIED** this session): `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"de.newtelco.minimail.refresh"]`.
+- Debug trigger from LLDB while paused on device (from Apple's "Refreshing and Maintaining Your App Using Background Tasks" sample project; exact selector **UNVERIFIED** this session): `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"com.minimail.refresh"]`.
 
 ### 3.4 Battery-neutral rules
 - App refresh is opportunistic: the system decides when, based on usage patterns and conditions; `earliestBeginDate` only delays. Don't fight it (no timers, no location, no VoIP, no silent-push hacks).
@@ -509,7 +509,7 @@ Views re-render only for properties actually read in `body` (Observation trackin
 import Security
 
 enum Keychain {
-    static let service = "de.newtelco.minimail"
+    static let service = "com.minimail"
 
     static func set(_ data: Data, account: String) throws {
         let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]
@@ -582,7 +582,7 @@ CFBundleURLTypes:
   - CFBundleTypeRole: Editor
     CFBundleURLSchemes: [com.googleusercontent.apps.<client-id-prefix>]
 UIBackgroundModes: [fetch]
-BGTaskSchedulerPermittedIdentifiers: [de.newtelco.minimail.refresh]
+BGTaskSchedulerPermittedIdentifiers: [com.minimail.refresh]
 UIApplicationSceneManifest: { UIApplicationSupportsMultipleScenes: false }
 UILaunchScreen: {}
 ITSAppUsesNonExemptEncryption: false        # UNVERIFIED as required; common for TestFlight (HTTPS-only apps)

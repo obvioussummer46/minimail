@@ -259,7 +259,7 @@ Differences from the research draft `[tooling §1.4]`: local package, SwiftSoup 
 name: minimail
 options:
   minimumXcodeGenVersion: 2.46.0
-  bundleIdPrefix: de.newtelco
+  bundleIdPrefix: com
   deploymentTarget: { iOS: "17.0" }
   xcodeVersion: "26.6"
   createIntermediateGroups: true
@@ -310,7 +310,7 @@ targets:
       Release: Config/Google.xcconfig
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimail
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimail
         PRODUCT_NAME: minimail
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -325,12 +325,12 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest: { UIApplicationSupportsMultipleScenes: false }
         ITSAppUsesNonExemptEncryption: false
-        BGTaskSchedulerPermittedIdentifiers: [de.newtelco.minimail.refresh]
+        BGTaskSchedulerPermittedIdentifiers: [com.minimail.refresh]
         UIBackgroundModes: [fetch]
         GoogleClientID: $(GOOGLE_CLIENT_ID)
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: de.newtelco.minimail.oauth
+            CFBundleURLName: com.minimail.oauth
             CFBundleURLSchemes: [$(GOOGLE_REVERSED_CLIENT_ID)]
     entitlements: { path: minimail/minimail.entitlements, properties: {} }
     scheme:
@@ -348,7 +348,7 @@ targets:
       - { package: SnapshotTesting, product: SnapshotTesting }
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimailTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimailTests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/minimail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/minimail
         BUNDLE_LOADER: $(TEST_HOST)
   minimailUITests:
@@ -358,7 +358,7 @@ targets:
     dependencies: [{ target: minimail }]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimailUITests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimailUITests
         TEST_TARGET_NAME: minimail
 ```
 
@@ -840,7 +840,7 @@ actor AppAuthTokenProvider: TokenProvider {
 
 // Auth/KeychainStore.swift
 struct KeychainStore: Sendable {
-    let service: String     // "de.newtelco.minimail"
+    let service: String     // "com.minimail"
     func set(_ data: Data, account: String) throws
     func get(account: String) throws -> Data?
     func delete(account: String) throws
@@ -1442,7 +1442,7 @@ Because history deltas are applied blindly to `S`, a missed record (e.g. a `tooM
 ### 4.11 Background refresh
 
 ```
-.backgroundTask(.appRefresh("de.newtelco.minimail.refresh"))   // identifier must match BGTaskSchedulerPermittedIdentifiers exactly
+.backgroundTask(.appRefresh("com.minimail.refresh"))   // identifier must match BGTaskSchedulerPermittedIdentifiers exactly
 BackgroundRefresh.run():
     scheduleNext()                          // request is consumed; re-arm first [ios-platform §3.3]
     guard auth.state is signedIn else return
@@ -1460,7 +1460,7 @@ DB protection: if `DatabasePool` throws `SQLITE_AUTH`/`SQLITE_IOERR` because the
 
 1. **Config**: `GoogleClientID` read from `Bundle.main.infoDictionary` (injected from `Config/Google.xcconfig`); redirect URI = `com.googleusercontent.apps.<id>:/oauth2redirect` (single slash) `[gmail-api "OAuth 2.0 for iOS"]`; endpoints hard-coded (`https://accounts.google.com/o/oauth2/v2/auth`, `https://oauth2.googleapis.com/token`, `https://oauth2.googleapis.com/revoke`) — no discovery round-trip at launch `[gmail-api OIDC-verified]`.
 2. **Scopes**: exactly `["https://www.googleapis.com/auth/gmail.modify"]`. Decision: no `openid`/`email` scope — the account email comes from `getProfile` (1 unit), which avoids a second consent line and any id-token handling.
-3. **Sign-in** (`AuthStore.signIn(from:)`, main actor): `OIDAuthorizationRequest(configuration:clientId:scopes:redirectURL:responseType: OIDResponseTypeCode, additionalParameters: ["login_hint": lastEmail?, "hd": "newtelco.de"])`; `OIDExternalUserAgentIOS(presentingViewController:prefersEphemeralSession: false)` (shared Safari session, fastest for a single work account `[ios-platform §1.3]`); `OIDAuthState.authState(byPresenting:externalUserAgent:callback:)`; callback hops to the main actor via `withCheckedThrowingContinuation`. The returned `OIDAuthState` is handed to `AppAuthTokenProvider.adopt(_:)` which persists it (NSKeyedArchiver, secure coding) into the Keychain under service `de.newtelco.minimail`, account `oauth.authState`, accessibility `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` `[ios-platform §1.5, §5.5]`.
+3. **Sign-in** (`AuthStore.signIn(from:)`, main actor): `OIDAuthorizationRequest(configuration:clientId:scopes:redirectURL:responseType: OIDResponseTypeCode, additionalParameters: ["login_hint": lastEmail?, "hd": "example.com"])`; `OIDExternalUserAgentIOS(presentingViewController:prefersEphemeralSession: false)` (shared Safari session, fastest for a single work account `[ios-platform §1.3]`); `OIDAuthState.authState(byPresenting:externalUserAgent:callback:)`; callback hops to the main actor via `withCheckedThrowingContinuation`. The returned `OIDAuthState` is handed to `AppAuthTokenProvider.adopt(_:)` which persists it (NSKeyedArchiver, secure coding) into the Keychain under service `com.minimail`, account `oauth.authState`, accessibility `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` `[ios-platform §1.5, §5.5]`.
 4. **Account check**: immediately `api.getProfile()`. If `sync_state.accountEmail` exists and differs → `Database.wipe` + reset (single-account app; a different account never sees the old cache). Store `accountEmail`. State → `.signedIn(email)`.
 5. **`onOpenURL`** fallback: `auth.resume(url:)` calls `currentFlow?.resumeExternalUserAgentFlow(url)` `[ios-platform §1.4]`.
 6. **Missing refresh token** (`state.refreshToken == nil` after sign-in): retry the flow once with `additionalParameters["prompt"] = "consent"`; if still missing, surface "Google did not issue a refresh token" and stay signed out (`[gmail-api "PKCE"]` UNVERIFIED that native clients always get one).
@@ -1583,7 +1583,7 @@ Batch usage table:
 
 ### 6.5 Logging
 
-- `os.Logger(subsystem: "de.newtelco.minimail", category:)` categories: `auth`, `net`, `sync`, `outbox`, `db`, `render`, `ui`, `bg`.
+- `os.Logger(subsystem: "com.minimail", category:)` categories: `auth`, `net`, `sync`, `outbox`, `db`, `render`, `ui`, `bg`.
 - Privacy: message ids/thread ids `%{public}`; addresses, subjects, snippets `%{private}`; **never** log tokens, `Authorization` headers, bodies, `raw`, or attachment bytes. Error envelopes are logged with `message` redacted to 120 chars.
 - Each `GmailAPI` call logs one line at `.info`: method, status, elapsed ms, units, retry count, batch part count. Signposts (`OSSignposter`): `coldStart`, `fullSync`, `deltaSync`, `hydrateBatch`, `threadOpen`, `bodyLoad`, `send`.
 - `DiagnosticsScreen` (Settings) shows: account, `historyId`, generation, last full/delta/reconcile times, drift count, outbox rows (state, attempts, last error), limiter state, and a "Copy diagnostics" button (plain text, no secrets). It also has "Force full resync".
@@ -1923,7 +1923,7 @@ struct Settings: Codable, Equatable, Sendable {
 }
 
 @Observable @MainActor final class SettingsStore {
-    static let key = "de.newtelco.minimail.settings"
+    static let key = "com.minimail.settings"
     private(set) var settings: Settings                       // mutate via update { }
     init(defaults: UserDefaults = .standard)                  // JSON decode; on decode failure → defaults + log; migrates by schemaVersion
     func update(_ change: (inout Settings) -> Void)           // encodes with .sortedKeys and writes synchronously

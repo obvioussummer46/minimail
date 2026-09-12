@@ -308,7 +308,7 @@ targets:
         MinimailGoogleClientID: $(GOOGLE_CLIENT_ID)
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: de.newtelco.minimail.oauth
+            CFBundleURLName: com.minimail.oauth
             CFBundleURLSchemes:
               - com.googleusercontent.apps.$(GOOGLE_CLIENT_ID)
         UILaunchScreen:
@@ -1263,15 +1263,15 @@ Data-protection: DB directory set to `.completeUntilFirstUserAuthentication`; on
 ## 5. Auth
 
 ### 5.1 Prerequisites (owner, one-time; from `[gmail-api §OAuth scopes and Workspace policy]`)
-GCP project inside the newtelco.de org → OAuth consent **Internal** → Gmail API enabled → OAuth client type **iOS**, bundle id `de.newtelco.minimail` → Admin console: mark the client **Trusted** or enable "Trust internal, domain-owned apps" (otherwise `admin_policy_enforced`). Put the client-id prefix in `Config/Google.xcconfig`.
+GCP project inside the example.com org → OAuth consent **Internal** → Gmail API enabled → OAuth client type **iOS**, bundle id `com.minimail` → Admin console: mark the client **Trusted** or enable "Trust internal, domain-owned apps" (otherwise `admin_policy_enforced`). Put the client-id prefix in `Config/Google.xcconfig`.
 
 ### 5.2 Flow
-1. `SignInScreen` → `AuthStore.signIn(presenting:)` → `OIDAuthorizationRequest(configuration: hardcodedEndpoints, clientId:, scopes: [gmail.modify], redirectURL:, responseType: code, additionalParameters: ["login_hint": lastEmail?, "hd": "newtelco.de"])` → `OIDExternalUserAgentIOS(presentingViewController:prefersEphemeralSession: false)` → `OIDAuthState.authState(byPresenting:externalUserAgent:callback:)` bridged with `withCheckedThrowingContinuation` `[ios-platform §1.4]`. No discovery call (saves a round trip and a failure mode).
+1. `SignInScreen` → `AuthStore.signIn(presenting:)` → `OIDAuthorizationRequest(configuration: hardcodedEndpoints, clientId:, scopes: [gmail.modify], redirectURL:, responseType: code, additionalParameters: ["login_hint": lastEmail?, "hd": "example.com"])` → `OIDExternalUserAgentIOS(presentingViewController:prefersEphemeralSession: false)` → `OIDAuthState.authState(byPresenting:externalUserAgent:callback:)` bridged with `withCheckedThrowingContinuation` `[ios-platform §1.4]`. No discovery call (saves a round trip and a failure mode).
 2. On success: `tokens.store(state)` (Keychain), `db` opened/migrated already, `syncEngine.syncNow(.launch)`; `RootView` switches to the list.
 3. `onOpenURL` → `authStore.resume(url:)` fallback (ASWebAuthenticationSession normally completes via its handler).
 
 ### 5.3 Token storage & refresh
-- `OIDAuthState` archived with `NSKeyedArchiver.archivedData(withRootObject:requiringSecureCoding: true)` into `kSecClassGenericPassword` service `de.newtelco.minimail`, account `oauth.authState`, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` `[ios-platform §1.5, §5.5]`. Re-archived on every `OIDAuthStateChangeDelegate.didChange`.
+- `OIDAuthState` archived with `NSKeyedArchiver.archivedData(withRootObject:requiringSecureCoding: true)` into `kSecClassGenericPassword` service `com.minimail`, account `oauth.authState`, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` `[ios-platform §1.5, §5.5]`. Re-archived on every `OIDAuthStateChangeDelegate.didChange`.
 - `AppAuthTokenProvider.accessToken()` wraps `performAction(freshTokens:)`; the actor keeps one in-flight refresh `Task` so N concurrent callers share one token refresh (AppAuth serialisation is UNVERIFIED → guarded by the actor).
 - Restore happens **after the first frame** (`RootView.task`), so a Keychain read never delays launch. Until restore completes the list renders from SQLite as usual; only the sync waits.
 
@@ -1325,7 +1325,7 @@ Mapping: HTTP status first, then `GmailErrorEnvelope.error.status`/`reason` `[gm
 `Retry-After` header wins; otherwise exponential backoff with jitter (1 → 32 s). On the third consecutive 429 across the sync, the sync aborts and `SyncStatus.phase = .error("Rate limited")`; the next trigger retries. Daily-limit 403 pauses the outbox until next launch.
 
 ### 6.6 Logging
-`os.Logger(subsystem: "de.newtelco.minimail", category:)` categories: `launch`, `sync`, `outbox`, `net`, `auth`, `render`, `db`. `net` logs method + path + status + duration + byte counts only — **never** headers, tokens, bodies, or addresses (use `privacy: .private` for ids). `os_signpost` intervals: `launch.firstFrame`, `sync.initial`, `sync.delta`, `sync.batch`, `render.threadOpen`, `render.loadHTML`, `outbox.drain`. In DEBUG, `MINIMAIL_NETLOG=1` env dumps request/response summaries to the console.
+`os.Logger(subsystem: "com.minimail", category:)` categories: `launch`, `sync`, `outbox`, `net`, `auth`, `render`, `db`. `net` logs method + path + status + duration + byte counts only — **never** headers, tokens, bodies, or addresses (use `privacy: .private` for ids). `os_signpost` intervals: `launch.firstFrame`, `sync.initial`, `sync.delta`, `sync.batch`, `render.threadOpen`, `render.loadHTML`, `outbox.drain`. In DEBUG, `MINIMAIL_NETLOG=1` env dumps request/response summaries to the console.
 
 ---
 
@@ -1447,7 +1447,7 @@ No Mailboxes root screen: the app opens on the Inbox list (one tap fewer, one sc
 
 **SettingsScreen**: Account (email, "Sign out"), Appearance (Theme picker → System/Light/Dark + theme list), Compose (Default font & colour → `ComposeStyleScreen` with live preview; Signature → `SignatureEditorScreen`: raw HTML `TextEditor` + live preview in a pooled web view + "Import from Gmail" + "Use signature" toggle), Reading (Load remote images automatically: off; Mark as read when opened: on; Prefetch messages for offline reading: on), Background (Background refresh: on; Show unread count on icon: off → triggers the `.badge` authorisation prompt when enabled `[ios-platform §6]`), About (version, build).
 
-**SignInScreen**: app name, one `Button("Sign in with Google")` (`.borderedProminent`), footer text about the newtelco.de account; `needsReauth` variant shows the reason.
+**SignInScreen**: app name, one `Button("Sign in with Google")` (`.borderedProminent`), footer text about the example.com account; `needsReauth` variant shows the reason.
 
 ### 8.3 List row layout (`ThreadRowView`) — iOS Mail conventions
 ```

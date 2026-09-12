@@ -31,7 +31,7 @@ final class MIMEBuilderTests: XCTestCase {
 
     private func reply(attachments: [OutgoingAttachment] = []) -> OutgoingMessage {
         OutgoingMessage(
-            from: Mailbox(name: "Max Mustermann", addr: "max.mustermann@newtelco.de"),
+            from: Mailbox(name: "Max Mustermann", addr: "max.mustermann@example.com"),
             to: [
                 Mailbox(name: "Alice Müller", addr: "alice@example.com"),
                 Mailbox(name: nil, addr: "bob@example.com"),
@@ -40,7 +40,7 @@ final class MIMEBuilderTests: XCTestCase {
             subject: "Re: Angebot für die Erweiterung",
             date: Date(timeIntervalSince1970: 1_789_113_600),
             timeZone: berlin,
-            messageID: "<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@newtelco.de>",
+            messageID: "<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@example.com>",
             inReplyTo: "<CAF=abc123@mail.example.com>",
             references: ["<older-id@example.com>", "<CAF=abc123@mail.example.com>"],
             textBody: "Hallo Alice,\n\nja.\n\nViele Grüße\nMax",
@@ -66,7 +66,7 @@ final class MIMEBuilderTests: XCTestCase {
                 "MIME-Version", "Content-Type",
             ]
         )
-        XCTAssertTrue(output.contains("From: Max Mustermann <max.mustermann@newtelco.de>\r\n"))
+        XCTAssertTrue(output.contains("From: Max Mustermann <max.mustermann@example.com>\r\n"))
         XCTAssertTrue(output.contains("Date: Fri, 11 Sep 2026 10:00:00 +0200\r\n"))
         XCTAssertTrue(output.contains("In-Reply-To: <CAF=abc123@mail.example.com>\r\n"))
         XCTAssertTrue(

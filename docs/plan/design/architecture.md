@@ -215,7 +215,7 @@ minimail/                                  # repo root
 name: minimail
 options:
   minimumXcodeGenVersion: 2.46.0
-  bundleIdPrefix: de.newtelco
+  bundleIdPrefix: com
   deploymentTarget: { iOS: "17.0" }
   xcodeVersion: "26.6"
   createIntermediateGroups: true
@@ -262,7 +262,7 @@ targets:
       - { package: MailCore, product: MailHTML }
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimail
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimail
         PRODUCT_NAME: minimail
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -277,12 +277,12 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest: { UIApplicationSupportsMultipleScenes: false }
         ITSAppUsesNonExemptEncryption: false
-        BGTaskSchedulerPermittedIdentifiers: [de.newtelco.minimail.refresh]
+        BGTaskSchedulerPermittedIdentifiers: [com.minimail.refresh]
         UIBackgroundModes: [fetch]
         GoogleClientID: $(GOOGLE_CLIENT_ID)                  # read by OAuthConfig.fromInfoPlist()
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: de.newtelco.minimail.oauth
+            CFBundleURLName: com.minimail.oauth
             CFBundleURLSchemes: [$(GOOGLE_REVERSED_CLIENT_ID)]
     entitlements: { path: minimail/minimail.entitlements, properties: {} }
     scheme:
@@ -303,7 +303,7 @@ targets:
       - { package: MailCore, product: MailHTML }
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimailTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimailTests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/minimail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/minimail
         BUNDLE_LOADER: $(TEST_HOST)
 ```
@@ -775,7 +775,7 @@ enum AuthError: Error, Sendable, Equatable { case signedOut, needsReauth, userCa
 }
 // Auth/Keychain.swift  [ios-platform §5.5]
 enum Keychain {
-    static let service = "de.newtelco.minimail"
+    static let service = "com.minimail"
     static func exists(account: String) -> Bool      // SecItemCopyMatching with kSecReturnAttributes; < 5 ms
     static func set(_ data: Data, account: String) throws
     static func get(account: String) throws -> Data?
@@ -946,7 +946,7 @@ struct MailActions {
 }
 // App/BackgroundRefresh.swift
 enum BackgroundRefresh {
-    static let taskID = "de.newtelco.minimail.refresh"
+    static let taskID = "com.minimail.refresh"
     static func schedule()                               // BGAppRefreshTaskRequest, earliestBeginDate +15 min; iOS 27 async submit branch
     static func run(_ env: AppEnvironment) async         // §4.10
 }
@@ -1362,7 +1362,7 @@ Three statements, not a Pruner; `lastCleanupAt` in `syncState`.
 
 ### 4.10 Background refresh `[ios-platform §3]`
 ```
-.backgroundTask(.appRefresh("de.newtelco.minimail.refresh")) { await BackgroundRefresh.run(env) }
+.backgroundTask(.appRefresh("com.minimail.refresh")) { await BackgroundRefresh.run(env) }
 run(env):
     BackgroundRefresh.schedule()                       // request consumed; re-arm first
     guard env.auth.state is .signedIn else return
@@ -1382,7 +1382,7 @@ DB protection: `SQLITE_AUTH`/`SQLITE_IOERR` (locked before first unlock) → log
    ```
    request = OIDAuthorizationRequest(configuration: OIDServiceConfiguration(authorizationEndpoint:tokenEndpoint:), clientId: config.clientID, clientSecret: nil,
                 scopes: config.scopes, redirectURL: config.redirectURL, responseType: OIDResponseTypeCode,
-                additionalParameters: ["login_hint": settings.lastSignedInEmail, "hd": "newtelco.de"].compactMapValues { $0 })
+                additionalParameters: ["login_hint": settings.lastSignedInEmail, "hd": "example.com"].compactMapValues { $0 })
    agent   = OIDExternalUserAgentIOS(presentingViewController: keyWindow.rootViewController, prefersEphemeralSession: false)
    currentFlow = OIDAuthState.authState(byPresenting: request, externalUserAgent: agent) { state, error in Task { @MainActor in finish(state, error) } }
    finish: guard state else throw flowFailed/userCancelled
@@ -1397,7 +1397,7 @@ DB protection: `SQLITE_AUTH`/`SQLITE_IOERR` (locked before first unlock) → log
 5. Workspace prerequisite (owner checklist): OAuth app type **Internal**; admin marks the client Trusted or enables "Trust internal, domain-owned apps"; `SignInScreen` shows that exact remedy when the error contains `admin_policy_enforced` `[gmail-api "Workspace"]`.
 
 ### 5.2 Token storage and launch routing
-- Whole `OIDAuthState` archived with `NSKeyedArchiver.archivedData(withRootObject:requiringSecureCoding: true)` into Keychain item `service = "de.newtelco.minimail"`, `account = "oauth.authState"`, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` `[ios-platform §1.5, §5.5]`; re-archived on every `OIDAuthStateChangeDelegate.didChange`.
+- Whole `OIDAuthState` archived with `NSKeyedArchiver.archivedData(withRootObject:requiringSecureCoding: true)` into Keychain item `service = "com.minimail"`, `account = "oauth.authState"`, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` `[ios-platform §1.5, §5.5]`; re-archived on every `OIDAuthStateChangeDelegate.didChange`.
 - **Routing before the first frame** uses two cheap facts: `Keychain.exists("oauth.authState")` (one `SecItemCopyMatching` for attributes, < 5 ms) and `syncState.accountEmail` (read during the same synchronous DB open). Truth table:
 
 | Keychain item | `accountEmail` | `AuthStore.state` | Behaviour |
@@ -1501,7 +1501,7 @@ map(URLError): notConnectedToInternet, networkConnectionLost, dataNotAllowed, in
 No token bucket. `RequestLimiter(max: 2)` + sequential 25-part batches + the retry table above keep any minute under ~2,600 pessimistic units (initial sync) and idle deltas at 2 units. A third consecutive `.rateLimited` in one run aborts the run with `SyncStatus.lastError = "Rate limited — try again later"`; the next trigger retries.
 
 ### 6.5 Logging
-`Support/Log.swift`: `os.Logger(subsystem: "de.newtelco.minimail", category:)` with categories `auth`, `net`, `sync`, `outbox`, `db`, `web`, `ui`, `bg`. Rules: method + path + status + ms at `.debug`; retries/recoveries at `.notice`; failures at `.error` with the `GmailError` description; ids `%{public}`, addresses/subjects/snippets `%{private}`; never tokens, headers, bodies. `OSSignposter` intervals: `coldStartToList`, `fullSync`, `deltaSync`, `hydrateBatch`, `threadOpen`, `bodyLoad`, `documentLoad`, `outboxDrain`. In DEBUG `RequestLog` keeps the last 100 `(method, path, status, ms)` for Settings → Advanced → "Recent requests" (the agent's substitute for a proxy).
+`Support/Log.swift`: `os.Logger(subsystem: "com.minimail", category:)` with categories `auth`, `net`, `sync`, `outbox`, `db`, `web`, `ui`, `bg`. Rules: method + path + status + ms at `.debug`; retries/recoveries at `.notice`; failures at `.error` with the `GmailError` description; ids `%{public}`, addresses/subjects/snippets `%{private}`; never tokens, headers, bodies. `OSSignposter` intervals: `coldStartToList`, `fullSync`, `deltaSync`, `hydrateBatch`, `threadOpen`, `bodyLoad`, `documentLoad`, `outboxDrain`. In DEBUG `RequestLog` keeps the last 100 `(method, path, status, ms)` for Settings → Advanced → "Recent requests" (the agent's substitute for a proxy).
 
 ---
 
@@ -1782,7 +1782,7 @@ struct Settings: Codable, Equatable, Sendable {
     var lastSignedInEmail: String? = nil                     // login_hint only; identity lives in syncState
 }
 @Observable final class SettingsStore {
-    static let key = "de.newtelco.minimail.settings"
+    static let key = "com.minimail.settings"
     private(set) var settings: Settings
     init(defaults: UserDefaults = .standard)                 // JSON decode with decodeIfPresent per field; failure → defaults + log
     func update(_ change: (inout Settings) -> Void)          // encodes .sortedKeys, writes synchronously
@@ -1795,7 +1795,7 @@ Settings screen (Form): **Account** (email from `syncState`, "Sign out" destruct
 
 ## 12. Performance & battery budget
 
-### 12.1 Targets (iPhone 12-class, Release, cached inbox of 100 threads; measured with the `OSSignposter` intervals of §6.5 via `log stream --predicate 'subsystem == "de.newtelco.minimail"'` on device — no CI gate)
+### 12.1 Targets (iPhone 12-class, Release, cached inbox of 100 threads; measured with the `OSSignposter` intervals of §6.5 via `log stream --predicate 'subsystem == "com.minimail"'` on device — no CI gate)
 
 | Metric | Target | How it is met |
 |---|---|---|

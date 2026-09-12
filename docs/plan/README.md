@@ -40,11 +40,11 @@ None of these can be scripted. The build fails closed with placeholder values, s
 
 | # | Task | Where the value lands |
 |---|---|---|
-| 1 | Create a Google Cloud project **inside the newtelco.de organization**; set the OAuth consent screen user type to **Internal** (no verification review, no 7-day token expiry) | — |
+| 1 | Create a Google Cloud project **inside the example.com organization**; set the OAuth consent screen user type to **Internal** (no verification review, no 7-day token expiry) | — |
 | 2 | Enable the Gmail API in that project | — |
-| 3 | Create an **iOS** OAuth client for bundle id `de.newtelco.minimail` | `GOOGLE_CLIENT_ID` and `REVERSED_CLIENT_ID` in `Config/Secrets.xcconfig` (git-ignored) |
+| 3 | Create an **iOS** OAuth client for bundle id `com.minimail` | `GOOGLE_CLIENT_ID` and `REVERSED_CLIENT_ID` in `Config/Secrets.xcconfig` (git-ignored) |
 | 4 | Workspace admin: mark the client Trusted, or enable "Trust internal, domain-owned apps" under Security → API controls. Without this, sign-in fails with `admin_policy_enforced` | — |
-| 5 | Apple Developer account; register bundle id `de.newtelco.minimail` | `DEVELOPMENT_TEAM` in `Config/Secrets.xcconfig` |
+| 5 | Apple Developer account; register bundle id `com.minimail` | `DEVELOPMENT_TEAM` in `Config/Secrets.xcconfig` |
 | 6 | A macOS machine or runner with Xcode 26.x for `make build` / `make test-app` | — |
 | 7 | For TestFlight only (T14.9–T14.11): App Store Connect app record and an API key | `Config/appstore.env`, git-ignored |
 

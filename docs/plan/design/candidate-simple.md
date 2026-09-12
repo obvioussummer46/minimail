@@ -184,7 +184,7 @@ Adapted from `tooling.md` §1.4 (verified against XcodeGen ProjectSpec there): U
 name: minimail
 options:
   minimumXcodeGenVersion: 2.46.0
-  bundleIdPrefix: de.newtelco
+  bundleIdPrefix: com
   deploymentTarget: { iOS: "17.0" }
   xcodeVersion: "26.6"
   createIntermediateGroups: true
@@ -225,7 +225,7 @@ targets:
       - { package: MailCore, product: MailCore }
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimail
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimail
         PRODUCT_NAME: minimail
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -240,11 +240,11 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest: { UIApplicationSupportsMultipleScenes: false }
         ITSAppUsesNonExemptEncryption: false
-        BGTaskSchedulerPermittedIdentifiers: [de.newtelco.minimail.refresh]
+        BGTaskSchedulerPermittedIdentifiers: [com.minimail.refresh]
         UIBackgroundModes: [fetch]
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: de.newtelco.minimail.oauth
+            CFBundleURLName: com.minimail.oauth
             CFBundleURLSchemes: [com.googleusercontent.apps.REPLACE_WITH_GOOGLE_CLIENT_ID]
     entitlements: { path: minimail/minimail.entitlements, properties: {} }
     scheme:
@@ -258,7 +258,7 @@ targets:
     dependencies: [{ target: minimail }]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimailTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimailTests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/minimail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/minimail
         BUNDLE_LOADER: $(TEST_HOST)
 ```
@@ -749,7 +749,7 @@ struct MailActions {
 
 // Sync/BackgroundRefresh.swift
 enum BackgroundRefresh {
-    static let taskID = "de.newtelco.minimail.refresh"
+    static let taskID = "com.minimail.refresh"
     static func schedule()                             // BGAppRefreshTaskRequest, earliestBeginDate = +15 min
     static func run(_ env: AppEnvironment) async       // refresh + drain + badge; honours Task.isCancelled
 }
@@ -1153,7 +1153,7 @@ SignInScreen "Sign in with Google"
       config  = OIDServiceConfiguration(authorizationEndpoint: accounts.google.com/o/oauth2/v2/auth, tokenEndpoint: oauth2.googleapis.com/token)   // hard-coded, verified via OIDC (gmail-api.md OAuth); no discovery round-trip
       request = OIDAuthorizationRequest(configuration: config, clientId: clientID, clientSecret: nil,
                     scopes: ["https://www.googleapis.com/auth/gmail.modify"], redirectURL: redirectURL,
-                    responseType: OIDResponseTypeCode, additionalParameters: ["hd": "newtelco.de"])   // hd optional/harmless (UNVERIFIED for native)
+                    responseType: OIDResponseTypeCode, additionalParameters: ["hd": "example.com"])   // hd optional/harmless (UNVERIFIED for native)
       agent   = OIDExternalUserAgentIOS(presentingViewController: keyWindow.rootViewController, prefersEphemeralSession: false)  // shared session: one-tap if already signed in
       currentFlow = OIDAuthState.authState(byPresenting: request, externalUserAgent: agent) { state, error in
                         Task { @MainActor in self.finish(state, error) } }
@@ -1165,7 +1165,7 @@ SignInScreen "Sign in with Google"
 - Workspace prerequisite (owner checklist, not code): OAuth app type **Internal**; admin marks the client Trusted or enables "Trust internal, domain-owned apps", else `admin_policy_enforced` (`gmail-api.md` OAuth scopes section — SNIPPET-verified). `SignInScreen` shows that exact hint when the error string contains `admin_policy_enforced`.
 
 ### 5.2 Token storage
-- Whole `OIDAuthState` archived with `NSKeyedArchiver.archivedData(withRootObject:requiringSecureCoding: true)` into the Keychain item `service = "de.newtelco.minimail"`, `account = "oauth.authState"`, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` (BG refresh works after first unlock; item never migrates to another device) — `ios-platform.md` §1.5, §5.5. Persist again on every `OIDAuthStateChangeDelegate.didChange`.
+- Whole `OIDAuthState` archived with `NSKeyedArchiver.archivedData(withRootObject:requiringSecureCoding: true)` into the Keychain item `service = "com.minimail"`, `account = "oauth.authState"`, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` (BG refresh works after first unlock; item never migrates to another device) — `ios-platform.md` §1.5, §5.5. Persist again on every `OIDAuthStateChangeDelegate.didChange`.
 - `Keychain.swift` is the 3-function enum from `ios-platform.md` §5.5, verbatim.
 - Restore at launch: `AuthStore.restore()` (sync, before first frame) → `.signedIn` if an archived state exists, else `.signedOut`.
 
@@ -1259,7 +1259,7 @@ func withRetry<T: Sendable>(maxAttempts: Int = 4, _ op: () async throws -> T) as
 Backoff numbers follow `gmail-api.md` quotas guidance (start 1 s, exponential, honour `Retry-After`). Inside BG refresh the total budget is capped by checking `Task.isCancelled` before each attempt.
 
 ### 6.5 Logging
-`Support/Log.swift`: `enum Log { static let net = Logger(subsystem: "de.newtelco.minimail", category: "net"); sync, outbox, db, ui, web }`. Rules: request line + status + duration at `.debug`; retries and recoveries at `.notice`; failures at `.error` with the `GmailError` description (no bodies). Never log tokens, addresses, subjects (use ids). `os_signpost` intervals (`Support/Log.swift` `Signpost.begin/end`) for: `coldStartToList`, `deltaSync`, `fullSync`, `threadOpen`, `bodiesFetch`, `documentLoad`. In DEBUG the client also records `(method, path, status, ms)` into a ring buffer of 100 shown in Settings → Advanced → "Recent requests" (the agent's substitute for Charles).
+`Support/Log.swift`: `enum Log { static let net = Logger(subsystem: "com.minimail", category: "net"); sync, outbox, db, ui, web }`. Rules: request line + status + duration at `.debug`; retries and recoveries at `.notice`; failures at `.error` with the `GmailError` description (no bodies). Never log tokens, addresses, subjects (use ids). `os_signpost` intervals (`Support/Log.swift` `Signpost.begin/end`) for: `coldStartToList`, `deltaSync`, `fullSync`, `threadOpen`, `bodiesFetch`, `documentLoad`. In DEBUG the client also records `(method, path, status, ms)` into a ring buffer of 100 shown in Settings → Advanced → "Recent requests" (the agent's substitute for Charles).
 
 ---
 
@@ -1526,7 +1526,7 @@ struct Settings: Codable, Equatable, Sendable {
 
 ## 12. Performance & battery budget
 
-Targets are measured with the `os_signpost` intervals from §6.5 (read in Instruments or `log stream --predicate 'subsystem == "de.newtelco.minimail"'` on device / `xcrun simctl spawn booted log stream` on simulator).
+Targets are measured with the `os_signpost` intervals from §6.5 (read in Instruments or `log stream --predicate 'subsystem == "com.minimail"'` on device / `xcrun simctl spawn booted log stream` on simulator).
 
 | Metric | Target | How it is met |
 |---|---|---|

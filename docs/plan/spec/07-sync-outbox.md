@@ -76,7 +76,7 @@ Conventions: "S" = `message.serverLabelIds`, "P" = the ordered pending outbox de
 | `minimailTests/Sync/MaintenanceTests.swift` | new | the three statements, throttle, guards, file purge (§7; additive, D8) |
 | `minimailTests/Sync/BackgroundRefreshTests.swift` | new | signed-out guard, call order, cancellation checkpoint (§7; additive, D8) |
 
-No fixture files are created: MailCore tests use module 03's `Fixtures/gmail/history.*.json`; app tests use the same fixtures copied into the `minimailTests` bundle (spec 01 §5.1) plus JSON built inline. No Info.plist key is added — `UIBackgroundModes: [fetch]` and `BGTaskSchedulerPermittedIdentifiers: [de.newtelco.minimail.refresh]` are already in `project.yml` (spec 01, architecture §1.4, `[ios-platform §3.1]`). `make lint`: the three package files import only `Foundation`; `minimail/Sync/*` import `Foundation`, `os`, `GRDB`, `MailCore`, `MailHTML`, `UIKit` (only `MailActions.swift`, for `beginBackgroundTask`), `UserNotifications` (only `SyncEngine.swift`); never `AppAuth`, `WebKit`, `SwiftUI`.
+No fixture files are created: MailCore tests use module 03's `Fixtures/gmail/history.*.json`; app tests use the same fixtures copied into the `minimailTests` bundle (spec 01 §5.1) plus JSON built inline. No Info.plist key is added — `UIBackgroundModes: [fetch]` and `BGTaskSchedulerPermittedIdentifiers: [com.minimail.refresh]` are already in `project.yml` (spec 01, architecture §1.4, `[ios-platform §3.1]`). `make lint`: the three package files import only `Foundation`; `minimail/Sync/*` import `Foundation`, `os`, `GRDB`, `MailCore`, `MailHTML`, `UIKit` (only `MailActions.swift`, for `beginBackgroundTask`), `UserNotifications` (only `SyncEngine.swift`); never `AppAuth`, `WebKit`, `SwiftUI`.
 
 ---
 
@@ -372,7 +372,7 @@ import Foundation
 import os
 
 nonisolated enum BackgroundRefresh {
-    static let taskID = "de.newtelco.minimail.refresh"
+    static let taskID = "com.minimail.refresh"
     /// `BGAppRefreshTaskRequest(identifier: taskID)`, `earliestBeginDate = now + 15 min`, submitted from a detached task
     /// (`submitTaskRequest` under `#available(iOS 27, *)`, else `submit`) `[ios-platform §3.3]`. Errors logged at `.notice`, never thrown.
     /// No-op when `AppEnvironment.isTestingProcess` (the simulator test host must not touch BGTaskScheduler).
@@ -453,7 +453,7 @@ nonisolated final class FixedTokenProvider: TokenProvider, @unchecked Sendable {
 @MainActor final class SyncHarness {
     let db: DatabaseQueue                       // `Database.openInMemory()` (module 06)
     let status: SyncStatus
-    let auth: AuthStore                         // `.signedIn("me@newtelco.de")`: `AuthStore(tokens: AppAuthTokenProvider(keychainAccount: "test.sync", onNeedsReauth: {}), config: OAuthConfig.fromInfoPlist(), hasKeychainItem: true, cachedEmail: "me@newtelco.de")` (spec 04 §3.3/§4.9; no I/O)
+    let auth: AuthStore                         // `.signedIn("me@example.com")`: `AuthStore(tokens: AppAuthTokenProvider(keychainAccount: "test.sync", onNeedsReauth: {}), config: OAuthConfig.fromInfoPlist(), hasKeychainItem: true, cachedEmail: "me@example.com")` (spec 04 §3.3/§4.9; no I/O)
     var settings: Settings                      // returned by the engine's `settings` closure; tests mutate it (e.g. `showBadge = true`) between calls
     let gmail: GmailClient                      // `URLSession.minimail(protocolClasses: [StubURLProtocol.self])`, `RequestLimiter(max: 2)`, sleep recorder, random 0.5
     let outbox: Outbox
@@ -468,8 +468,8 @@ nonisolated final class FixedTokenProvider: TokenProvider, @unchecked Sendable {
     init(settings: Settings = Settings()) throws
     func advance(seconds: TimeInterval)
     /// Seeds via `MessageRepository.upsertMetadata` + `ThreadRepository.recomputeAggregates` inside one write; `generation` = current `syncGeneration`.
-    func seed(_ messages: [ParsedMessage], selfAddresses: Set<String> = ["me@newtelco.de"]) throws
-    /// Sets `syncState.historyId`, `.syncGeneration` (1), `.accountEmail` ("me@newtelco.de"), `.selfAddresses` (["me@newtelco.de"]), `.lastFullSyncAt`, `.lastDeltaSyncAt` in one write.
+    func seed(_ messages: [ParsedMessage], selfAddresses: Set<String> = ["me@example.com"]) throws
+    /// Sets `syncState.historyId`, `.syncGeneration` (1), `.accountEmail` ("me@example.com"), `.selfAddresses` (["me@example.com"]), `.lastFullSyncAt`, `.lastDeltaSyncAt` in one write.
     func seedSyncState(historyId: UInt64) throws
     func message(_ db: Database, _ id: String) throws -> MessageRecord?
     func thread(_ db: Database, _ id: String) throws -> ThreadRecord?
@@ -1088,7 +1088,7 @@ send(job):
     do { _ = try await db.write { try OutboxRepository.enqueueSend($0, job: job, now: nowMs()) } }
     catch { Log.outbox.error("enqueueSend failed"); return }
     var bgTask = UIBackgroundTaskIdentifier.invalid
-    bgTask = UIApplication.shared.beginBackgroundTask(withName: "de.newtelco.minimail.send") { [bgTask] in UIApplication.shared.endBackgroundTask(bgTask) }   // [ios-platform §3.5]
+    bgTask = UIApplication.shared.beginBackgroundTask(withName: "com.minimail.send") { [bgTask] in UIApplication.shared.endBackgroundTask(bgTask) }   // [ios-platform §3.5]
     await outbox.drain()
     if bgTask != .invalid { UIApplication.shared.endBackgroundTask(bgTask) }
 ```
@@ -1252,7 +1252,7 @@ WindowGroup {
 | `lastFullSyncAt`, `lastDeltaSyncAt`, `lastLabelCountsAt`, `lastCleanupAt` | `fullSync` / `deltaSync` / `refreshLabelCounts` / `Maintenance.cleanup` | epoch ms decimal string |
 | `accountEmail` | `fullSync` | verbatim `GmailProfile.emailAddress` |
 | `displayName` | `fullSync` | `sendAs.displayName` of the default (else primary) alias; nil when absent |
-| `selfAddresses` | `fullSync` | sorted JSON `["m.mustermann@newtelco.de","max.mustermann@newtelco.de"]`, lowercased |
+| `selfAddresses` | `fullSync` | sorted JSON `["m.mustermann@example.com","max.mustermann@example.com"]`, lowercased |
 | `sendAsSignature` | `fullSync` | raw HTML of the default/primary alias signature; nil when absent |
 | `inboxNextPageToken` | `fullSync`, `loadOlderInbox` | verbatim token; nil when exhausted |
 
@@ -1261,9 +1261,9 @@ WindowGroup {
 Modify row (via `enqueueModify`): `kind = 'modify'`, `state = 'pending'`, `threadId`, `addLabelIds`/`removeLabelIds` sorted JSON (`["UNREAD"]`, `[]`), `affectedMessageIds` JSON of `ThreadRepository.messageIds`. Send row (via `enqueueSend`): `kind = 'send'`, `sendJob` = `JSONEncoder` (`.sortedKeys`) of `SendJob`, `rfc822MessageId = job.messageID`, `transmitState = 'notSent'`. Example `sendJob` (formatting added):
 ```json
 {"attachments":[{"attachmentId":"ANGjdJ8w","filename":"invoice.pdf","mimeType":"application/pdf","partId":"1","size":38211}],
- "cc":[],"includeSignature":true,"inReplyTo":"<orig@example.com>","messageID":"<8E9C5D0A-1C2B-4E6F-9A11-000000000001@newtelco.de>",
+ "cc":[],"includeSignature":true,"inReplyTo":"<orig@example.com>","messageID":"<8E9C5D0A-1C2B-4E6F-9A11-000000000001@example.com>",
  "mode":"forward","originalMessageId":"18f2c1a2b3c4d5e6",
- "quoteSource":{"author":{"addr":"alice@example.com","name":"Alice"},"cc":[],"date":757580000,"html":"<div>Original</div>","subject":"Invoice 42","text":"Original","to":[{"addr":"me@newtelco.de","name":null}]},
+ "quoteSource":{"author":{"addr":"alice@example.com","name":"Alice"},"cc":[],"date":757580000,"html":"<div>Original</div>","subject":"Invoice 42","text":"Original","to":[{"addr":"me@example.com","name":null}]},
  "references":["<orig@example.com>"],"subject":"Fwd: Invoice 42","threadId":"18f2c1a2b3c4d5e6","to":[{"addr":"bob@example.com","name":"Bob"}],"typedText":"FYI"}
 ```
 (`date` encodes as `Date`'s default `timeIntervalSinceReferenceDate` double; module 06 owns the encoder — this module only decodes with `JSONDecoder()` defaults, so both sides must keep default date strategies.)
@@ -1304,7 +1304,7 @@ Modify row (via `enqueueModify`): `kind = 'modify'`, `state = 'pending'`, `threa
 | `Backoff.transient` / `.outbox` | 1→16 s / 2→300 s, ±25 % | 05 (formula copy) / `OutboxRepository.retryLater` |
 | BG `earliestBeginDate` | now + 900 s | `BackgroundRefresh.schedule` |
 | `Maintenance.interval` / `threadMaxAge` / `bodiesKept` / `fileMaxAge` / `failedSendMaxAge` | 86,400 s / 30 d / 2,000 / 7 d / 30 d | `Maintenance` |
-| bg task name | `de.newtelco.minimail.send` | `MailActions.send` |
+| bg task name | `com.minimail.send` | `MailActions.send` |
 
 ### 5.5 Log lines (category, level, template; ids public, text private per architecture §6.5)
 
@@ -1368,11 +1368,11 @@ Package tests run with `cd Packages/MailCore && swift test` (Linux and macOS). A
 
 ### 7.2 App tests — `SyncEngineTests.swift`
 
-Routes use `BatchStub.install`. "profile" = `JSONFixtures.profile(email: "me@newtelco.de", historyId: 5000)`; "sendAs" = fixture `sendas.list.json`; "labels" = fixture `labels.list.json`.
+Routes use `BatchStub.install`. "profile" = `JSONFixtures.profile(email: "me@example.com", historyId: 5000)`; "sendAs" = fixture `sendas.list.json`; "labels" = fixture `labels.list.json`.
 
 | Test | Setup | Assertions |
 |---|---|---|
-| `testFullSyncRequestSequence` | empty DB; routes: profile, sendAs, labels, `GET /gmail/v1/users/me/messages` → `messageList(["m1"…"m30"], next: "p2")`, parts → metadata for each id, history → `history(records: [], historyId: 5000)`; `run(.launch)` | recorded non-batch paths in order: `profile`, `settings/sendAs`, `labels`, `messages`, then batches, then `history`, then `labels` (counts) + labels batch; `BatchStub.batchCount == 2` (25 + 5) before history; `message` rows == 30; `thread` rows == 30; `syncState.historyId == "5000"`, `syncGeneration == "1"`, `inboxNextPageToken == "p2"`, `accountEmail == "me@newtelco.de"`, `selfAddresses` contains the sendAs alias; `status.phase == .idle`, `lastError == nil`, `lastSyncAt != nil` |
+| `testFullSyncRequestSequence` | empty DB; routes: profile, sendAs, labels, `GET /gmail/v1/users/me/messages` → `messageList(["m1"…"m30"], next: "p2")`, parts → metadata for each id, history → `history(records: [], historyId: 5000)`; `run(.launch)` | recorded non-batch paths in order: `profile`, `settings/sendAs`, `labels`, `messages`, then batches, then `history`, then `labels` (counts) + labels batch; `BatchStub.batchCount == 2` (25 + 5) before history; `message` rows == 30; `thread` rows == 30; `syncState.historyId == "5000"`, `syncGeneration == "1"`, `inboxNextPageToken == "p2"`, `accountEmail == "me@example.com"`, `selfAddresses` contains the sendAs alias; `status.phase == .idle`, `lastError == nil`, `lastSyncAt != nil` |
 | `testFullSyncProgressiveCommits` | as above with 30 ids; the second batch part responder answers with `delay: 0.3` (via the route's response `delay`) | a concurrent `db.read` count of `message` polled every 50 ms observes `25` before `30` |
 | `testInitialSyncPhase` | empty DB; observe `status.phase` transitions via a `withObservationTracking` loop | sequence contains `.initialSync` then `.idle`; second `run(.pullToRefresh)` (historyId present) shows `.syncing` |
 | `testDeltaAddedFetched` | seeded `a1`; `historyId 1000`; history → `history.added.json` bytes; parts → metadata `n1` | one batch POST with one part `messages/n1?format=metadata…`; `message n1` exists with `serverLabelIds == ["INBOX","UNREAD"]`; `thread n1.inInbox == 1`; `historyId == "2001"`; `lastDeltaSyncAt == now ms` |
@@ -1411,10 +1411,10 @@ Routes use `BatchStub.install`. "profile" = `JSONFixtures.profile(email: "me@new
 | `testNoBodyPayloadUnavailable` | part answers a `GmailMessage` with `payload` absent | `a1.bodyState == 2`; `thread.bodiesMissing == 0` |
 | `testBodyFetchKeepsPendingRead` | seed `a1` unread; `actions.markRead("a1")` (no drain: stub offline for batch); then part → full `a1` with labels `["INBOX","UNREAD"]`; `ensureThreadLoaded` | `a1.serverLabelIds` contains `UNREAD`; `a1.labelIds` does NOT contain `UNREAD`; `thread.unreadCount == 0` (the SIMPLE race) |
 | `testPausedWhenNeedsReauth` | `auth.markNeedsReauth()`; `run(.launch)` | zero requests; `phase == .idle` |
-| `testUnauthorizedMarksReauth` | history → 401 twice (`error.401.json`) | `auth.state == .needsReauth("me@newtelco.de")`; `lastError == nil` |
+| `testUnauthorizedMarksReauth` | history → 401 twice (`error.401.json`) | `auth.state == .needsReauth("me@example.com")`; `lastError == nil` |
 | `testOfflineSetsFlagNoError` | history → transport offline | `status.isOffline == true`; `lastError == nil`; next successful run → `isOffline == false` |
 | `testRateLimitAbort` | empty DB; full-sync routes list 100 ids; every metadata batch part answers 429 (`error.429.json`, `Retry-After: 1`) so each chunk exhausts module 05's 3 re-send rounds and returns `.rateLimited` parts | `BatchStub.batchCount == 12` (3 chunks × 4 POSTs each), no 4th chunk, no `history` request; `status.lastError == "Rate limited — try again later"`; `syncState.historyId == nil`; `message` rows == 0 |
-| `testAccountMismatchAborts` | `accountEmail = "other@newtelco.de"`; profile `me@newtelco.de`; historyId nil | `auth.state == .signedOut`; `auth.lastAuthError == .accountMismatch(expected: "other@newtelco.de", got: "me@newtelco.de")`; no `messages` request |
+| `testAccountMismatchAborts` | `accountEmail = "other@example.com"`; profile `me@example.com`; historyId nil | `auth.state == .signedOut`; `auth.lastAuthError == .accountMismatch(expected: "other@example.com", got: "me@example.com")`; no `messages` request |
 | `testSingleFlightRerun` | history delayed 0.2; `run(.launch)` and `run(.pullToRefresh)` concurrently | second call returns before the first finishes (elapsed < 0.1 s); total `history` requests == 2; `status.lastRunReason == .pullToRefresh` |
 | `testBadgeOnlyWhenEnabled` | `showBadge false` → `updateBadge()`; then `showBadge true` with 3 unread inbox threads | `badgeCalls == []` then `[3]` |
 | `testRequestFullResync` | seed `historyId 5000`, `lastFullSyncAt` set; full-sync routes | `profile` requested; `syncGeneration == "2"`; `status.phase` never `.initialSync` |
@@ -1547,7 +1547,7 @@ Test count: MailCore 29; app 47 (`SyncEngineTests`) + 9 + 20 + 8 + 18 + 7 + 4 = 
 7. Transient modify failures never delete an op: back-off 2→300 s ± 25 %, `failed` after 8 counted attempts, re-armed on foreground/pull; `offline`/`unauthorized`/`cancelled` do not count; permanent 4xx removes the op and reverts E (`testBackoffSchedule`, `testOfflineNotCounted`, `testFailedRearmedOnForeground`, `testPermanent4xxRevertsE`).
 8. A send sets `transmitState = maybeSent` before the POST, retries only after a `rfc822msgid:` search, never POSTs twice when the search finds the message, stamps `Date` at build time, builds the quote from the job snapshot, refuses > 20,000,000 bytes of attachments before any request, and re-resolves an `attachmentId` exactly once on 404 (`SendTests`).
 9. Sign-out: `prepareSignOut` returns only after the running sync and drain have stopped; afterwards no `db.write` from `SyncEngine`/`Outbox` occurs (`testCancelAllStopsRun`, `testCancelAllAwaitsDrain`). Reauth: while `auth.state == .needsReauth` no request is issued (`testPausedWhenNeedsReauth`).
-10. Background refresh: the handler re-schedules first, skips when signed out, performs delta + drain + badge, checks cancellation between steps, never opens a web view or fetches bodies (`BackgroundRefreshTests`). Manual device step (module 14 checklist): pause in LLDB and run `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"de.newtelco.minimail.refresh"]` (selector UNVERIFIED `[ios-platform §3.3]`); `log stream --predicate 'subsystem == "de.newtelco.minimail" AND category == "bg"'` shows `bg refresh done` and exactly one `history` request in the `net` category.
+10. Background refresh: the handler re-schedules first, skips when signed out, performs delta + drain + badge, checks cancellation between steps, never opens a web view or fetches bodies (`BackgroundRefreshTests`). Manual device step (module 14 checklist): pause in LLDB and run `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"com.minimail.refresh"]` (selector UNVERIFIED `[ios-platform §3.3]`); `log stream --predicate 'subsystem == "com.minimail" AND category == "bg"'` shows `bg refresh done` and exactly one `history` request in the `net` category.
 11. `Maintenance.cleanup` runs at most once per 24 h, only after a successful sync, and applies exactly the three statements + file purge with the protections of §4.8 (`MaintenanceTests`); `minimail/App/Maintenance.swift` and `minimail/Sync/*` contain no SQL string (`make lint` grep in T07.12).
 12. The app badge equals `Queries.inboxUnreadThreadCount` after every run, ack and BG refresh when `Settings.showBadge` is true and badge authorization is granted, and is never touched otherwise (`testBadgeOnlyWhenEnabled`; manual: enable the toggle in Settings, archive an unread thread, background the app → the icon badge decrements).
 13. Full test suites: `make core-test` and `make test-app` finish with 0 failures; `make lint` passes.

@@ -6,8 +6,8 @@ final class MailboxTests: XCTestCase {
 
     func testSerializedForms() {
         XCTAssertEqual(
-            Mailbox(name: "Max Mustermann", addr: "max.mustermann@newtelco.de").serialized(),
-            "Max Mustermann <max.mustermann@newtelco.de>"
+            Mailbox(name: "Max Mustermann", addr: "max.mustermann@example.com").serialized(),
+            "Max Mustermann <max.mustermann@example.com>"
         )
         XCTAssertEqual(
             Mailbox(name: "Müller, Alice", addr: "alice@example.com").serialized(),
@@ -51,14 +51,14 @@ final class AddressParserTests: XCTestCase {
     }
 
     func testCommaInsideQuotedNameDoesNotSplit() {
-        let list = AddressParser.parseList("\"Mustermann, Max\" <max@newtelco.de>, bob@example.com")
+        let list = AddressParser.parseList("\"Mustermann, Max\" <max@example.com>, bob@example.com")
         XCTAssertEqual(list.count, 2)
         XCTAssertEqual(list[0].name, "Mustermann, Max")
     }
 
     func testGroupIsFlattened() {
-        let list = AddressParser.parseList("Team: max.mustermann@newtelco.de, bob@example.com;")
-        XCTAssertEqual(list.map(\.addr), ["max.mustermann@newtelco.de", "bob@example.com"])
+        let list = AddressParser.parseList("Team: max.mustermann@example.com, bob@example.com;")
+        XCTAssertEqual(list.map(\.addr), ["max.mustermann@example.com", "bob@example.com"])
     }
 
     func testEmptyGroup() {
@@ -239,8 +239,8 @@ final class MessageIDsTests: XCTestCase {
     func testGenerate() {
         let uuid = UUID(uuidString: "7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70")!
         XCTAssertEqual(
-            MessageIDs.generate(domain: "newtelco.de", uuid: uuid),
-            "<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@newtelco.de>"
+            MessageIDs.generate(domain: "example.com", uuid: uuid),
+            "<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@example.com>"
         )
         XCTAssertTrue(MessageIDs.generate(domain: "", uuid: uuid).hasSuffix("@localhost>"))
     }
