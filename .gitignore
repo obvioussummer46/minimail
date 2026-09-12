@@ -1,0 +1,10 @@
+# XcodeGen output — regenerate with `xcodegen generate`
+minimail.xcodeproj/
+minimail/Info.plist
+minimail/minimail.entitlements
+# build artefacts
+.build/
+DerivedData/
+*.xcresult
+.swiftpm/
+.DS_Store

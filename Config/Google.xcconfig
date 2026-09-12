@@ -1,0 +1,4 @@
+// OAuth client (type iOS) created in the newtelco.de Google Cloud project (docs/plan/README.md §2).
+// GOOGLE_REVERSED_CLIENT_ID is GOOGLE_CLIENT_ID with its two dot-separated halves swapped.
+GOOGLE_CLIENT_ID = REPLACE.apps.googleusercontent.com
+GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.REPLACE
