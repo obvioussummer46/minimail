@@ -55,10 +55,15 @@ nonisolated final class AppEnvironmentTests: XCTestCase {
             .environment(env)
             .environment(env.theme)
             .environment(env.settings)
+        // A hosting controller only builds its hierarchy once it is in a window, so put it in one.
+        // The assertion is the layout itself: a missing environment object would trap before this line.
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         let controller = UIHostingController(rootView: root)
-        controller.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
         controller.view.layoutIfNeeded()
-        XCTAssertFalse(controller.view.subviews.isEmpty)
+        XCTAssertEqual(controller.view.bounds.width, 390)
+        XCTAssertEqual(controller.view.bounds.height, 844)
     }
 
     @MainActor

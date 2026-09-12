@@ -113,6 +113,7 @@ all of modules 02 and 03 plus `ComposeStyle`.
 | 4 | LF-only batch input reports `.truncated`, not `.noDelimiter`, because the decoder prepends CRLF and so still matches the opening boundary. Spec 03 §4.7's last bullet is wrong | Wrong test expectation |
 | 5 | swift-format wants a line break right after `=` or `return` when an expression wraps | Style |
 | 6 | `XCTestCase` subclasses cannot be main-actor isolated: their initialisers clash with the nonisolated ones they inherit. Spec 01 §7 says the opposite | Real bug, test target |
+| 7 | A `UIHostingController` builds no subviews until it is in a window, so spec 01 §7.2's `subviews.isEmpty == false` assertion for `testRootViewHosts` never holds. The test now attaches a window and asserts the layout size | Wrong test expectation |
 
 ### Resolved unknowns
 
