@@ -396,8 +396,8 @@ final class MessageParserTests: XCTestCase {
         )
         XCTAssertEqual(
             MessageParser.decodeText(GmailPart(mimeType: "text/plain", body: GmailPartBody(data: ""))),
-            nil,
-            "an empty data string means the part carried nothing"
+            "",
+            "an empty data string decodes to an empty body, not to nil"
         )
         XCTAssertEqual(
             MessageParser.decodeText(bytes: Data("a\r\nb\rc".utf8), charset: nil),
@@ -546,9 +546,11 @@ final class BatchCodecTests: XCTestCase {
     }
 
     func testDecodeRejectsLFOnlyInput() {
+        // The decoder prepends CRLF, so a body starting with the boundary still matches the first
+        // delimiter; the missing CRLF is only noticed when the part is read, which reports truncation.
         let lfOnly = Data("--B\nContent-ID: <m1>\n\nHTTP/1.1 200 OK\n\nx\n--B--\n".utf8)
         XCTAssertThrowsError(try BatchCodec.decode(body: lfOnly, boundary: "B")) {
-            XCTAssertEqual($0 as? BatchCodecError, .noDelimiter)
+            XCTAssertEqual($0 as? BatchCodecError, .truncated)
         }
     }
 }

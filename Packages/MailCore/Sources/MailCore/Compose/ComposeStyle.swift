@@ -56,7 +56,7 @@ public struct ComposeStyle: Codable, Equatable, Sendable {
     public var sizePx: Int = 14 {
         didSet {
             if !Self.sizeRange.contains(sizePx) {
-                sizePx = min(max(sizePx, Self.sizeRange.lowerBound), Self.sizeRange.upperBound)
+                sizePx = Self.clampedSize(sizePx)
             }
         }
     }
@@ -94,15 +94,20 @@ public struct ComposeStyle: Codable, Equatable, Sendable {
     public init() {}
 
     /// Clamps the size and normalises the colour, so a caller cannot construct an invalid style.
+    /// Assignments inside an initializer bypass the property observers, so this clamps explicitly too.
     public init(family: Family, sizePx: Int, colorHex: String) {
         self.init()
         self.family = family
-        self.sizePx = sizePx
-        self.colorHex = colorHex
+        self.sizePx = Self.clampedSize(sizePx)
+        self.colorHex = Self.normalizedColorHex(colorHex) ?? Self.defaultColorHex
+    }
+
+    static func clampedSize(_ value: Int) -> Int {
+        min(max(value, sizeRange.lowerBound), sizeRange.upperBound)
     }
 
     /// Tolerant decoding: every key optional, an unknown `family` raw value falls back to `.helvetica`,
-    /// then the property observers clamp and validate. A type mismatch still throws, so that
+    /// the size is clamped and the colour normalised. A type mismatch still throws, so that
     /// `Settings.init(from:)` can isolate the failure and substitute a default `ComposeStyle`.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -112,11 +117,13 @@ public struct ComposeStyle: Codable, Equatable, Sendable {
         {
             family = parsed
         }
+        // Property observers do not run for assignments made inside an initializer, so the clamping and
+        // normalisation have to be explicit here.
         if let size = try container.decodeIfPresent(Int.self, forKey: .sizePx) {
-            sizePx = size
+            sizePx = Self.clampedSize(size)
         }
         if let hex = try container.decodeIfPresent(String.self, forKey: .colorHex) {
-            colorHex = hex
+            colorHex = Self.normalizedColorHex(hex) ?? Self.defaultColorHex
         }
     }
 }
