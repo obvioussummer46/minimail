@@ -113,9 +113,8 @@ public enum RFC2047 {
         }
         if !current.isEmpty { chunks.append(current) }
 
-        return chunks
-            .map { "=?UTF-8?B?" + Data($0).base64EncodedString() + "?=" }
-            .joined(separator: "\r\n ")
+        let words = chunks.map { "=?UTF-8?B?" + Data($0).base64EncodedString() + "?=" }
+        return words.joined(separator: "\r\n ")
     }
 
     /// `=?charset[*lang]?B|Q?text?=`. Fails when a piece is empty, a piece holds `?` or a space, or there is

@@ -26,8 +26,8 @@ public enum OutgoingBodies {
                 ? "<div><br></div>" : "<div>\(escape(line))</div>"
         }
 
-        var out = "<div dir=\"ltr\" class=\"minimail_default\" style=\"\(style.inlineCSS)\">"
-            + lines.joined() + "</div>"
+        let opening = "<div dir=\"ltr\" class=\"minimail_default\" style=\"\(style.inlineCSS)\">"
+        var out = opening + lines.joined() + "</div>"
 
         if let signatureHTML, !signatureHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             out += "<div><br></div><span class=\"gmail_signature_prefix\">-- </span><br>"

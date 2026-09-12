@@ -70,7 +70,7 @@ public enum Quoting {
     public static func forwardHTML(_ q: QuoteSource, timeZone: TimeZone) -> String {
         let stamp = OutgoingBodies.escape(HeaderDate.attribution(q.date, timeZone: timeZone))
         var out = "<div class=\"gmail_quote gmail_quote_container\">"
-            + "<div dir=\"ltr\" class=\"gmail_attr\">\(banner)<br>"
+        out += "<div dir=\"ltr\" class=\"gmail_attr\">\(banner)<br>"
 
         if let author = q.author {
             let name = OutgoingBodies.escape(

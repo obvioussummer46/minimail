@@ -276,9 +276,8 @@ public enum AddressParser {
             index = withoutComments.index(after: index)
         }
 
-        let collapsed = unquoted
-            .split(whereSeparator: { $0 == " " || $0 == "\t" })
-            .joined(separator: " ")
+        let pieces = unquoted.split(whereSeparator: { $0 == " " || $0 == "\t" })
+        let collapsed = pieces.joined(separator: " ")
         let decoded = RFC2047.decode(collapsed).trimmingCharacters(in: .whitespacesAndNewlines)
         return decoded.isEmpty ? nil : decoded
     }
