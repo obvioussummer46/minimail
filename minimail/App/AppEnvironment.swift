@@ -20,6 +20,16 @@ import os
     @ObservationIgnored let tokens: AppAuthTokenProvider
     /// Routing state computed in `init` from `Keychain.exists` + `cachedEmail`.
     @ObservationIgnored let auth: AuthStore
+    /// DEBUG ring buffer of recent HTTP requests (nil in Release).
+    @ObservationIgnored let requestLog: RequestLog?
+    /// Shared in-flight cap for every Gmail request (max 2).
+    @ObservationIgnored let limiter: RequestLimiter
+    /// The Gmail REST client. Construction only in `init`; no network until a call is made.
+    @ObservationIgnored let gmail: GmailClient
+
+    /// Injected by tests (module 14) before constructing an environment: `[StubURLProtocol.self]`. The default blocks
+    /// the network in the test host so a launch can never reach Gmail.
+    nonisolated(unsafe) static var testURLProtocolClasses: [AnyClass] = [OfflineURLProtocol.self]
 
     /// `OAuthConfig.testingKeychainAccount` when `isTesting`, else `OAuthConfig.keychainAccount` — so the test host
     /// never sees a developer's real item.
@@ -67,12 +77,27 @@ import os
         self.oauthConfig = oauthConfig
         self.auth = auth
         theme = ThemeStore(settings: settings)
-        // [05][07][08] GmailClient, SyncStatus, SyncEngine, Outbox, MailActions, WebViewHost — construction only
 
-        // Hooks owned by 01's objects (05/06/07/08 add theirs at the marked points).
+        #if DEBUG
+            requestLog = RequestLog()
+        #else
+            requestLog = nil
+        #endif
+        let limiter = RequestLimiter(max: 2)
+        let gmail = GmailClient(
+            tokens: tokens,
+            session: .minimail(protocolClasses: testing ? AppEnvironment.testURLProtocolClasses : nil),
+            limiter: limiter,
+            log: requestLog
+        )
+        self.limiter = limiter
+        self.gmail = gmail
+        // [07][08] SyncStatus, SyncEngine, Outbox, MailActions, WebViewHost — construction only
+
+        // Hooks owned by 01's objects (06/07/08 add theirs at the marked points).
         auth.hooks.loginHint = { [settings] in settings.settings.lastSignedInEmail }
         auth.hooks.rememberEmail = { [settings] email in settings.update { $0.lastSignedInEmail = email } }
-        // [05] auth.hooks.fetchProfileEmail = { [gmail] in try await gmail.getProfile().emailAddress }
+        auth.hooks.fetchProfileEmail = { [gmail] in try await gmail.getProfile().emailAddress }
         // [06][08] auth.hooks.wipeAccountData = { … close pool, Database.destroy, reopen, purge caches, webHost.recycle() … }
         // [07] auth.hooks.prepareSignOut = { … cancel + await sync/drain … } ; auth.hooks.didSignIn = { Task { await sync.run(.launch) } }
 

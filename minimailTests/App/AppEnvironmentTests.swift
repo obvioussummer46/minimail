@@ -121,7 +121,8 @@ nonisolated final class AppEnvironmentTests: XCTestCase {
         XCTAssertEqual(env.auth.hooks.loginHint(), "h@x")
         env.auth.hooks.rememberEmail("n@x")
         XCTAssertEqual(env.settings.settings.lastSignedInEmail, "n@x")
-        XCTAssertNil(env.auth.hooks.fetchProfileEmail)
+        // Module 05 wires the profile closure ({ gmail.getProfile().emailAddress }).
+        XCTAssertNotNil(env.auth.hooks.fetchProfileEmail)
     }
 
     @MainActor
