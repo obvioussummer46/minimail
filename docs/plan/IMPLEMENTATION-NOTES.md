@@ -71,3 +71,24 @@ Expect to fix compile errors on the first pass. The likely spots are listed unde
 4. **`HeaderDate.parse` two-digit years.** 00 to 49 map to 2000s and 50 to 99 to 1900s, as the spec says.
 5. **Byte-exact fixtures.** Until D2 is closed, a Gmail-side rejection of the built message would not be
    caught by tests. Send one real reply and one real forward early.
+
+## 03 MailCore Gmail model
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D1 | 30-odd JSON fixture files under `Fixtures/gmail/` drive the DTO, parser and batch tests | Fixtures are inline Swift literals | Same reason as module 02 D1. Every payload shape the spec names, (a) through (h), has a test; the JSON simply lives in the test file. Module 14 can extract them into the catalogue. |
+| D2 | `Tests/MailCoreTests/Support/GmailFixtures.swift` provides `gmailFixture`, `gmailJSON`, `crlf` | Not written | It only exists to load the fixture files of D1. The batch tests build CRLF bodies with a local `response(_:)` helper instead. |
+
+### Risk list
+
+1. **`GmailPartBody.data` semantics.** The parser assumes Gmail hands over bytes with the transfer encoding
+   already removed, which the research marks UNVERIFIED. If that is wrong, plain-text bodies will show
+   quoted-printable escapes. One real message answers it.
+2. **The tree walk's "first of each type wins" rule.** Deliberately not the RFC's "last alternative"; it
+   matches Gmail's own client. A message whose second HTML alternative is the real one would render wrong.
+3. **`message/rfc822` is never recursed.** Bounce reports show the covering text, not the original.
+4. **Batch decoding.** Written to the documented envelope and exercised by eight tests, but never against a
+   real Gmail response. The first live batch call is the real test.
+5. **`attachmentId` stability.** Treated as transient, re-read on every open, as the research advises.
