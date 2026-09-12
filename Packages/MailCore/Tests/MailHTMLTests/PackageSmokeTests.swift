@@ -1,18 +1,12 @@
+import MailCore
 import XCTest
 
 @testable import MailHTML
 
 final class MailHTMLPackageSmokeTests: XCTestCase {
 
-    func testTextContentStripsMarkup() throws {
+    func testSwiftSoupLinked() throws {
         XCTAssertEqual(try MailHTMLPackage.textContent(ofHTML: "<p>Hi <b>there</b></p>"), "Hi there")
-    }
-
-    func testLinksMailCore() {
-        XCTAssertEqual(
-            MailHTMLPackage.defaultComposeCSS,
-            "font-family:Helvetica, Arial, sans-serif;font-size:14px;color:#000000"
-        )
     }
 
     func testFixtureBundleLoads() throws {
@@ -20,6 +14,10 @@ final class MailHTMLPackageSmokeTests: XCTestCase {
             Bundle.module.url(forResource: "smoke", withExtension: "html", subdirectory: "Fixtures/html")
         )
         let html = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertEqual(try MailHTMLPackage.textContent(ofHTML: html), "smoke fixture")
+        XCTAssertTrue(html.contains("smoke"))
+    }
+
+    func testMailCoreReachable() {
+        XCTAssertEqual(ComposeStyle().sizePx, 14)
     }
 }

@@ -4,21 +4,22 @@ import XCTest
 
 final class PackageSmokeTests: XCTestCase {
 
-    func testThemeCSSTokensEquality() {
-        let tokens = ThemeCSSTokens(
+    private func makeTokens(link: String = "#007aff") -> ThemeCSSTokens {
+        ThemeCSSTokens(
             background: "#ffffff",
-            surface: "#ffffff",
+            surface: "#f2f2f7",
             text: "#000000",
             secondaryText: "#3c3c43",
             accent: "#007aff",
             separator: "#c6c6c8",
-            link: "#007aff",
+            link: link,
             cardBackground: "#ffffff"
         )
-        var other = tokens
-        XCTAssertEqual(tokens, other)
-        other.accent = "#0a84ff"
-        XCTAssertNotEqual(tokens, other)
+    }
+
+    func testThemeCSSTokensEquatable() {
+        XCTAssertEqual(makeTokens(), makeTokens())
+        XCTAssertNotEqual(makeTokens(), makeTokens(link: "#0a84ff"))
     }
 
     func testFixtureBundleLoads() throws {
