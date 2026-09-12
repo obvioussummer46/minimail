@@ -94,6 +94,42 @@ The risk list below is kept for the record; every item in it has since been sett
    real Gmail response. The first live batch call is the real test.
 5. **`attachmentId` stability.** Treated as transient, re-read on every open, as the research advises.
 
+## 04 auth
+
+Built and verified on a Mac (Xcode 26.6, iPhone 17 simulator), not just in CI. All 56 module-04 tests plus
+module 01's 42 pass (98 total); lint clean.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D1 | `OAuthConfig.hostedDomain = "newtelco.de"` (restrict sign-in to the Workspace domain) | `hostedDomain = nil` | minimail is a generic Gmail client with no organisation affiliation; any Google account may sign in. The one-retry-without-`hd` path stays (dead but harmless). |
+| D2 | App identifier `de.newtelco.minimail` | `com.minimail` (bundle id, Keychain service, log subsystem, BGTask id, defaults keys) | Same reason as D1. Owner must register the OAuth client and Apple bundle id against `com.minimail`. |
+
+### Real bugs the tests found
+
+1. **Transient-refresh error was swallowed.** AppAuth's `performActionWithFreshTokens` returns the *stale*
+   access token *alongside* a transient (network) error (`OIDAuthState.m` line 576). Spec §4.4's callback
+   checks `if let token` first, so a failed refresh silently returned an expired token. Fixed: the callback
+   checks `error` first, so transport failures surface as `URLError` (retryable) as intended.
+
+### Resolved unknowns
+
+- **A2** `resumeExternalUserAgentFlowWithURL:error:` is `NS_SWIFT_NAME(resumeExternalUserAgentFlow(_:))` and
+  imports as **throwing**. The throwing variant of §4.12 is the one used.
+- **A4** `OIDURLSessionProvider.setSession(_:)` with a custom `protocolClasses` session **does** intercept
+  AppAuth's token requests, so the fallback (`URLProtocol.registerClass`) is not needed.
+- **A1** AppAuth error constants resolved from `OIDError.h`: `OIDErrorCodeOAuth.invalidGrant` (-10),
+  `OIDErrorCode.networkError` (-5), `.tokenRefreshError` (-11), `.userCanceledAuthorizationFlow` (-3),
+  `.programCanceledAuthorizationFlow` (-4); domains/keys as spelled.
+- **A10 was WRONG.** Keychain does **not** work in the simulator without entitlements: unsigned builds
+  (`CODE_SIGNING_ALLOWED=NO`) return `errSecMissingEntitlement` (-34018). Fix: ad-hoc simulator signing
+  (`CODE_SIGN_IDENTITY=-`, `CODE_SIGNING_ALLOWED=YES`) + a `keychain-access-groups` entitlement + a generated
+  test-target Info.plist (`GENERATE_INFOPLIST_FILE=YES`). The Makefile's `NOSIGN` now means ad-hoc, not
+  no-sign, and the CI `ios` job inherits this through `make`.
+- **A7** SwiftUI `.accessibilityIdentifier` is not visible via UIKit `accessibilityIdentifier` on hosted views
+  in this SDK, so `testRootViewHostsSignedOut` takes the documented degradation (asserts the view laid out).
+
 ## Verification status (CI is the compiler)
 
 `.github/workflows/ci.yml` gives this project a compiler without a Mac. The `core` job runs `swift test` for

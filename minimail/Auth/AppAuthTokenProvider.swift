@@ -4,7 +4,7 @@ import Foundation
 /// Owns the `OIDAuthState` (architecture §2.4, §5.3). One instance per process, created in `AppEnvironment.init`
 /// (construction only — no I/O).
 actor AppAuthTokenProvider: TokenProvider {
-    let keychainAccount: String
+    nonisolated let keychainAccount: String
     /// invalid_grant → `AuthStore.markNeedsReauth` on main (via `NeedsReauthRelay`).
     nonisolated let onNeedsReauth: @Sendable () -> Void
 
@@ -122,10 +122,14 @@ actor AppAuthTokenProvider: TokenProvider {
         let task = Task { [state] in
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, any Error>) in
                 state.performAction(freshTokens: { token, _, error in
-                    if let token {
+                    // AppAuth hands back the *stale* access token alongside a transient (network) error, so the
+                    // error must win: otherwise a failed refresh would silently return an expired token.
+                    if let error {
+                        cont.resume(throwing: Self.mapTokenError(error))
+                    } else if let token {
                         cont.resume(returning: token)
                     } else {
-                        cont.resume(throwing: Self.mapTokenError(error))
+                        cont.resume(throwing: Self.mapTokenError(nil))
                     }
                 })
             }
@@ -184,7 +188,9 @@ actor AppAuthTokenProvider: TokenProvider {
             req.httpMethod = "POST"
             req.timeoutInterval = 3
             req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-            let encoded = token.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? token
+            // Percent-encode for form bodies but keep RFC 3986 unreserved chars (real refresh tokens contain `-`, `_`, `.`, `~`).
+            let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            let encoded = token.addingPercentEncoding(withAllowedCharacters: unreserved) ?? token
             req.httpBody = Data("token=\(encoded)".utf8)
             do {
                 let (_, r) = try await session.data(for: req)

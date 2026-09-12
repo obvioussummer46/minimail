@@ -56,7 +56,8 @@ import os
         // [06] db = Database.open(directory:) — openInMemory() when isTesting
         let keychainAccount = testing ? OAuthConfig.testingKeychainAccount : OAuthConfig.keychainAccount
         let hasItem = Keychain.exists(account: keychainAccount)
-        let cachedEmail: String? = nil  // [06] replaces with: try? db.read { try SyncStateRepository.get($0, .accountEmail) }
+        // [06] replaces with: try? db.read { try SyncStateRepository.get($0, .accountEmail) }
+        let cachedEmail: String? = nil
         let relay = NeedsReauthRelay()
         let tokens = AppAuthTokenProvider(keychainAccount: keychainAccount, onNeedsReauth: { relay.fire() })
         let oauthConfig = OAuthConfig.fromInfoPlist()
