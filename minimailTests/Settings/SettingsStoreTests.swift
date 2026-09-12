@@ -3,8 +3,9 @@ import XCTest
 
 @testable import minimail
 
-final class SettingsStoreTests: XCTestCase {
+nonisolated final class SettingsStoreTests: XCTestCase {
 
+    @MainActor
     private func freshDefaults(_ name: String = #function) -> UserDefaults {
         let suite = "minimailTests.\(name)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -12,12 +13,14 @@ final class SettingsStoreTests: XCTestCase {
         return defaults
     }
 
+    @MainActor
     private func makeStore(seededWith json: String, _ name: String = #function) -> SettingsStore {
         let defaults = freshDefaults(name)
         defaults.set(Data(json.utf8), forKey: SettingsStore.key)
         return SettingsStore(defaults: defaults)
     }
 
+    @MainActor
     func testMissingKeyGivesDefaults() {
         let defaults = freshDefaults()
         let store = SettingsStore(defaults: defaults)
@@ -25,6 +28,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertNil(defaults.data(forKey: SettingsStore.key), "init must not write")
     }
 
+    @MainActor
     func testUpdateWritesSynchronouslyAndSortedKeys() throws {
         let defaults = freshDefaults()
         let store = SettingsStore(defaults: defaults)
@@ -40,10 +44,12 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(SettingsStore(defaults: defaults).settings.themeChoice, .dark)
     }
 
+    @MainActor
     func testCorruptDataFallsBack() {
         XCTAssertEqual(makeStore(seededWith: "not json").settings, Settings())
     }
 
+    @MainActor
     func testPartialJSON() {
         let settings = makeStore(seededWith: #"{"themeChoice":"dark"}"#).settings
         XCTAssertEqual(settings.themeChoice, .dark)
@@ -51,15 +57,18 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(settings.composeStyle, ComposeStyle())
     }
 
+    @MainActor
     func testUnknownThemeChoice() {
         XCTAssertEqual(makeStore(seededWith: #"{"themeChoice":"sepia"}"#).settings.themeChoice, .system)
     }
 
+    @MainActor
     func testUnknownKeysIgnored() {
         let settings = makeStore(seededWith: #"{"unknownKey":1,"markReadOnOpen":false}"#).settings
         XCTAssertFalse(settings.markReadOnOpen)
     }
 
+    @MainActor
     func testClampInboxPageSize() {
         XCTAssertEqual(makeStore(seededWith: #"{"inboxPageSize":999}"#).settings.inboxPageSize, 200)
         XCTAssertEqual(makeStore(seededWith: #"{"inboxPageSize":1}"#, "low").settings.inboxPageSize, 50)
@@ -69,12 +78,14 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.settings.inboxPageSize, 50)
     }
 
+    @MainActor
     func testNestedComposeStyleFailureIsolated() {
         let settings = makeStore(seededWith: #"{"composeStyle":{"sizePx":"big"},"showBadge":true}"#).settings
         XCTAssertEqual(settings.composeStyle, ComposeStyle())
         XCTAssertTrue(settings.showBadge)
     }
 
+    @MainActor
     func testComposeStyleNormalisedThroughUpdate() {
         let store = SettingsStore(defaults: freshDefaults())
         store.update {
@@ -85,10 +96,12 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.settings.composeStyle.colorHex, "#abcdef")
     }
 
+    @MainActor
     func testScalarTypeMismatchFallsBack() {
         XCTAssertEqual(makeStore(seededWith: #"{"markReadOnOpen":"yes"}"#).settings, Settings())
     }
 
+    @MainActor
     func testLastSignedInEmailTrimmed() throws {
         let defaults = freshDefaults()
         let store = SettingsStore(defaults: defaults)
@@ -102,6 +115,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.settings.lastSignedInEmail, "a@b.de")
     }
 
+    @MainActor
     func testSnapshotIsCopy() {
         let store = SettingsStore(defaults: freshDefaults())
         let snapshot = store.snapshot

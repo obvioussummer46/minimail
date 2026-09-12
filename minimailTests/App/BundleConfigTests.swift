@@ -3,23 +3,26 @@ import XCTest
 
 @testable import minimail
 
-final class BundleConfigTests: XCTestCase {
+nonisolated final class BundleConfigTests: XCTestCase {
 
     private var info: [String: Any] {
         Bundle.main.infoDictionary ?? [:]
     }
 
+    @MainActor
     func testBackgroundKeys() {
         XCTAssertEqual(info["BGTaskSchedulerPermittedIdentifiers"] as? [String], ["de.newtelco.minimail.refresh"])
         XCTAssertEqual(info["UIBackgroundModes"] as? [String], ["fetch"])
     }
 
+    @MainActor
     func testLaunchScreenColor() {
         let launch = info["UILaunchScreen"] as? [String: Any]
         XCTAssertEqual(launch?["UIColorName"] as? String, "LaunchBackground")
         XCTAssertNotNil(UIColor(named: "LaunchBackground"))
     }
 
+    @MainActor
     func testOAuthKeys() throws {
         let clientID = try XCTUnwrap(info["GoogleClientID"] as? String)
         XCTAssertTrue(clientID.hasSuffix(".apps.googleusercontent.com"))
@@ -29,6 +32,7 @@ final class BundleConfigTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(schemes.first).hasPrefix("com.googleusercontent.apps."))
     }
 
+    @MainActor
     func testDisplayAndCategory() {
         XCTAssertEqual(info["CFBundleDisplayName"] as? String, "minimail")
         XCTAssertEqual(info["LSApplicationCategoryType"] as? String, "public.app-category.productivity")
@@ -36,6 +40,7 @@ final class BundleConfigTests: XCTestCase {
         XCTAssertEqual(info["CFBundleShortVersionString"] as? String, "0.1.0")
     }
 
+    @MainActor
     func testPrivacyManifestBundled() throws {
         let url = try XCTUnwrap(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"))
         let plist = try PropertyListSerialization.propertyList(
@@ -50,10 +55,12 @@ final class BundleConfigTests: XCTestCase {
         XCTAssertEqual(first["NSPrivacyAccessedAPITypeReasons"] as? [String], ["CA92.1"])
     }
 
+    @MainActor
     func testAccentColorAsset() {
         XCTAssertNotNil(UIColor(named: "AccentColor"))
     }
 
+    @MainActor
     func testFixtureFolderCopied() {
         let url = Bundle(for: Self.self)
             .url(forResource: "smoke", withExtension: "json", subdirectory: "Fixtures/vectors")

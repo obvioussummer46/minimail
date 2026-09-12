@@ -5,8 +5,9 @@ import XCTest
 
 @testable import minimail
 
-final class ThemeStoreTests: XCTestCase {
+nonisolated final class ThemeStoreTests: XCTestCase {
 
+    @MainActor
     private func freshDefaults(_ name: String = #function) -> UserDefaults {
         let suite = "minimailTests.\(name)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -14,6 +15,7 @@ final class ThemeStoreTests: XCTestCase {
         return defaults
     }
 
+    @MainActor
     private func makeStore(_ name: String = #function, seededWith json: String? = nil) -> ThemeStore {
         let defaults = freshDefaults(name)
         if let json {
@@ -22,10 +24,12 @@ final class ThemeStoreTests: XCTestCase {
         return ThemeStore(settings: SettingsStore(defaults: defaults))
     }
 
+    @MainActor
     func testInitialChoiceFromSettings() {
         XCTAssertEqual(makeStore(seededWith: #"{"themeChoice":"light"}"#).choice, .light)
     }
 
+    @MainActor
     func testChoicePersists() {
         let defaults = freshDefaults()
         let theme = ThemeStore(settings: SettingsStore(defaults: defaults))
@@ -34,6 +38,7 @@ final class ThemeStoreTests: XCTestCase {
         XCTAssertEqual(SettingsStore(defaults: defaults).settings.themeChoice, .dark)
     }
 
+    @MainActor
     func testResolvedSystem() {
         let theme = makeStore()
         theme.choice = .system
@@ -41,6 +46,7 @@ final class ThemeStoreTests: XCTestCase {
         XCTAssertEqual(theme.resolved(for: .dark).id, "dark")
     }
 
+    @MainActor
     func testResolvedForced() {
         let theme = makeStore()
         theme.choice = .light
@@ -49,6 +55,7 @@ final class ThemeStoreTests: XCTestCase {
         XCTAssertEqual(theme.resolved(for: .light).id, "dark")
     }
 
+    @MainActor
     func testPreferredColorSchemeAndDocumentTheme() {
         let theme = makeStore()
         theme.choice = .system
@@ -62,6 +69,7 @@ final class ThemeStoreTests: XCTestCase {
         XCTAssertEqual(theme.forcedDocumentTheme, "dark")
     }
 
+    @MainActor
     func testInterfaceStyle() {
         let theme = makeStore()
         theme.choice = .system
@@ -72,12 +80,14 @@ final class ThemeStoreTests: XCTestCase {
         XCTAssertEqual(theme.interfaceStyle, .dark)
     }
 
+    @MainActor
     func testRegistry() {
         XCTAssertEqual(ThemeStore.registry.keys.sorted(), ["dark", "light"])
         XCTAssertEqual(ThemeStore.registry["light"]?.colorScheme, .light)
         XCTAssertEqual(ThemeStore.registry["dark"]?.name, "Dark")
     }
 
+    @MainActor
     func testCSSTokensHexFormat() {
         let themes: [any Theme] = [LightTheme(), DarkTheme()]
         for theme in themes {
@@ -94,6 +104,7 @@ final class ThemeStoreTests: XCTestCase {
         }
     }
 
+    @MainActor
     func testCSSTokensKnownValues() {
         let light = SystemPalette.cssTokens(for: .light)
         XCTAssertEqual(light.background, "#ffffff")
@@ -108,11 +119,13 @@ final class ThemeStoreTests: XCTestCase {
         XCTAssertEqual(dark.cardBackground, "#ffffff")
     }
 
+    @MainActor
     func testHexCompositesAlpha() {
         let half = UIColor(white: 0, alpha: 0.5)
         XCTAssertEqual(SystemPalette.hex(half, scheme: .light, over: .white), "#808080")
     }
 
+    @MainActor
     func testHexGrayscaleColor() {
         XCTAssertEqual(SystemPalette.hex(.white, scheme: .light), "#ffffff")
         XCTAssertEqual(SystemPalette.hex(.black, scheme: .light), "#000000")

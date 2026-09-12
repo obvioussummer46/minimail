@@ -92,3 +92,31 @@ Expect to fix compile errors on the first pass. The likely spots are listed unde
 4. **Batch decoding.** Written to the documented envelope and exercised by eight tests, but never against a
    real Gmail response. The first live batch call is the real test.
 5. **`attachmentId` stability.** Treated as transient, re-read on every open, as the research advises.
+
+## Verification status (CI is the compiler)
+
+`.github/workflows/ci.yml` gives this project a compiler without a Mac. The `core` job runs `swift test` for
+the MailCore package on an Ubuntu runner in about 25 seconds; the `ios` job runs lint, the package tests and
+the app tests on a macOS runner. Read failures with the GitHub Actions API rather than downloading the log
+archive, which the sandbox proxy blocks.
+
+**Green as of commit `2c454b7`:** the `core` job. 149 MailCore and MailHTML tests pass on Linux. That covers
+all of modules 02 and 03 plus `ComposeStyle`.
+
+### What the first four CI runs actually found
+
+| # | Finding | Kind |
+|---|---|---|
+| 1 | Three raw string literals ended early: `#"…"#` is terminated by `"#`, and the JSON contained `"colorHex":"#000000"` | Real bug, test code |
+| 2 | `ComposeStyle.init(from:)` never clamped or normalised, because Swift does not run property observers for assignments made inside an initializer. Spec 01 §4.1 and spec 02 §4.14 both prescribe that pattern, so **the spec is wrong here** | Real bug, production code |
+| 3 | `decodeText` on an empty data string returns `""`, not nil | Wrong test expectation |
+| 4 | LF-only batch input reports `.truncated`, not `.noDelimiter`, because the decoder prepends CRLF and so still matches the opening boundary. Spec 03 §4.7's last bullet is wrong | Wrong test expectation |
+| 5 | swift-format wants a line break right after `=` or `return` when an expression wraps | Style |
+| 6 | `XCTestCase` subclasses cannot be main-actor isolated: their initialisers clash with the nonisolated ones they inherit. Spec 01 §7 says the opposite | Real bug, test target |
+
+### Resolved unknowns
+
+- SwiftSoup **does** build on Linux, so `make core-test-nohtml` is a fallback that is not needed.
+- `nonisolated` on a type declaration compiles in this toolchain, so `Log`, `Formatters`, `Settings` and
+  `ThemeChoice` are fine as written.
+- Swift on the Linux runner is 6.1.3.
