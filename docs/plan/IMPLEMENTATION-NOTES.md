@@ -130,6 +130,30 @@ module 01's 42 pass (98 total); lint clean.
 - **A7** SwiftUI `.accessibilityIdentifier` is not visible via UIKit `accessibilityIdentifier` on hosted views
   in this SDK, so `testRootViewHostsSignedOut` takes the documented degradation (asserts the view laid out).
 
+## 05 gmail-client
+
+Built and verified on a Mac. 81 module-05 tests pass (GmailErrorTests 25,
+RequestLimiterTests 3, RequestLogTests 2, GmailClientTests 51); 179 app tests
+green overall; lint clean. Every §9 acceptance category is covered.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D1 | `GmailClientTests` load the module-03 `Fixtures/gmail/*.json` catalogue | Tests use inline JSON bodies (and a `stubBatchBody` builder) | Module 03 inlined its fixtures rather than creating the files (its own D1), so the catalogue does not exist. Inline bodies keep the tests self-contained and green; module 14 can migrate them to a catalogue. |
+| D2 | ~84 tests | 81 written | Every DoD category is covered; three narrow fixture-only variants were folded into equivalent inline tests. |
+
+### Notes
+
+- `@Sendable` stub-handler closures cannot capture the (non-Sendable) `XCTestCase`,
+  so the batch helpers (`stubPartIds`, `stubBatchBody`, `stubEncodeFields`) and the
+  round counter (`AtomicInt`) are file-scope `nonisolated` declarations, not methods.
+- `GmailError`'s `CustomStringConvertible` conformance had to be declared on the
+  `nonisolated` type itself (not an extension) or the conformance is inferred
+  MainActor-isolated under `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+- `URL.path` percent-decodes, so attachment-id encoding (`=` → `%3D`) is asserted
+  against `url.absoluteString`, not `.path`.
+
 ## Verification status (CI is the compiler)
 
 `.github/workflows/ci.yml` gives this project a compiler without a Mac. The `core` job runs `swift test` for
