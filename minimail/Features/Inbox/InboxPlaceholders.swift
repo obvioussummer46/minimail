@@ -62,14 +62,21 @@ struct LabelsScreen: View {
 /// Replaced by module 13 (`minimail/Features/Settings/SettingsScreen.swift`).
 struct SettingsScreen: View {
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.dismiss) private var dismiss
     init() {}
     var body: some View {
         NavigationStack {
             List {
                 Section("Account") {
                     Text(env.auth.state.email ?? "—")
-                    Button("Sign out", role: .destructive) { Task { await env.auth.signOut() } }
-                        .accessibilityIdentifier("placeholder.signout")
+                    Button("Sign out", role: .destructive) {
+                        // Dismiss the sheet first so the switch to SignInScreen is clean, and forget the remembered
+                        // address so the next sign-in shows Google's account chooser (lets you pick another account).
+                        dismiss()
+                        env.settings.update { $0.lastSignedInEmail = nil }
+                        Task { await env.auth.signOut() }
+                    }
+                    .accessibilityIdentifier("placeholder.signout")
                 }
             }
             .navigationTitle("Settings")

@@ -1,4 +1,5 @@
 import MailCore
+import SwiftUI
 import UIKit
 import XCTest
 
