@@ -185,7 +185,7 @@ nonisolated private struct InboxAux: Equatable, Sendable {
         let day = self.day
         auxCancellable =
             ValueObservation
-            .trackingConstantRegion { db in
+            .tracking { db in
                 InboxAux(
                     labels: try Queries.labelsById(db),
                     inboxUnread: try Queries.inboxUnreadThreadCount(db),
