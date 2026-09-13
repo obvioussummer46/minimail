@@ -15,7 +15,8 @@ if includeHTML {
     dependencies.append(.package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.13.9"))
     targets += [
         .target(name: "MailHTML", dependencies: ["MailCore", "SwiftSoup"], swiftSettings: [.swiftLanguageMode(.v6)]),
-        .testTarget(name: "MailHTMLTests", dependencies: ["MailHTML"], resources: [.copy("Fixtures")]),
+        .testTarget(
+            name: "MailHTMLTests", dependencies: ["MailHTML", "SwiftSoup"], resources: [.copy("Fixtures")]),
     ]
 }
 let package = Package(

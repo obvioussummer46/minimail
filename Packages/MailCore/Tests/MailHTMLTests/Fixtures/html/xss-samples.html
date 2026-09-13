@@ -1,0 +1,20 @@
+<div>
+<script>alert(1)</script>
+<a href="javascript:alert(1)">j</a>
+<a href="JavaScript:void(0)">j2</a>
+<img src="x" onerror="alert(1)">
+<iframe src="https://evil.example/i"></iframe>
+<form action="https://evil.example/f"><input name="a"></form>
+<object data="https://evil.example/o"></object>
+<base href="https://evil.example/">
+<link rel="stylesheet" href="https://evil.example/s.css">
+<p><svg width="10" height="10">e</svg></p>
+<meta http-equiv="refresh" content="0;url=https://evil.example">
+<img src="https://ok.example/y.png" srcset="https://ok.example/y2x.png 2x" alt="s">
+<div><button onclick="go()">go</button></div>
+<a href="https://ok.example" target="_blank">ok</a>
+<span onmouseover="track()">hover</span>
+<img src="//host/pr.png" alt="pr">
+<td background="https://evil.example/bg.png">bg</td>
+<embed src="https://evil.example/e">
+</div>
