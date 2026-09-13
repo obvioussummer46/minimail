@@ -216,7 +216,9 @@ actor Outbox {
         await MainActor.run {
             status.pendingOps = counts.pending
             status.failedSends = counts.failed
-            status.isOffline = offline
+            // Only raise the offline flag; clearing it is the job of a successful request (SyncEngine.noteResult),
+            // so a no-op drain at the end of an offline run does not wipe the flag the run just set.
+            if offline { status.isOffline = true }
             if unauthorized { status.lastError = GmailError.unauthorized.userMessage }
         }
         if ackedAny, let sync = syncBox.withLock({ $0 }) { await sync.updateBadge() }
