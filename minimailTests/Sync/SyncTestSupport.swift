@@ -150,16 +150,21 @@ nonisolated enum BatchStub {
     ) {
         counters.withLock { $0 = (0, 0) }
         let table = OSAllocatedUnfairLock<[String: [StubURLProtocol.Response]]>(
-            initialState: Dictionary(routes.map { ("\($0.method) \($0.path)", $0.responses) }, uniquingKeysWith: { a, _ in a }))
+            initialState: Dictionary(
+                routes.map { ("\($0.method) \($0.path)", $0.responses) }, uniquingKeysWith: { a, _ in a }))
         StubURLProtocol.install { req in
             if req.method == "POST" && req.path == "/batch/gmail/v1" {
                 let items = parseParts(req.body)
-                counters.withLock { $0.batch += 1; $0.parts += items.count }
+                counters.withLock {
+                    $0.batch += 1; $0.parts += items.count
+                }
                 var s = ""
                 for item in items {
                     let (status, body) = parts(item.method, item.path)
-                    s += "--\(boundary)\r\nContent-Type: application/http\r\nContent-ID: <response-\(item.partId)>\r\n\r\n"
-                    s += "HTTP/1.1 \(status) X\r\nContent-Type: application/json\r\n\r\n\(String(decoding: body, as: UTF8.self))\r\n"
+                    s +=
+                        "--\(boundary)\r\nContent-Type: application/http\r\nContent-ID: <response-\(item.partId)>\r\n\r\n"
+                    s +=
+                        "HTTP/1.1 \(status) X\r\nContent-Type: application/json\r\n\r\n\(String(decoding: body, as: UTF8.self))\r\n"
                 }
                 s += "--\(boundary)--\r\n"
                 return .batch(Data(s.utf8), boundary: boundary)
@@ -280,7 +285,8 @@ nonisolated func msg(
             limiter: RequestLimiter(max: 2), log: nil,
             sleep: { clientSleeps.record($0) }, random: { 0.5 })
 
-        identity = OutboxIdentitySource(db: db, settings: SettingsStore(defaults: UserDefaults(suiteName: "test.\(UUID().uuidString)")!))
+        identity = OutboxIdentitySource(
+            db: db, settings: SettingsStore(defaults: UserDefaults(suiteName: "test.\(UUID().uuidString)")!))
         let clock = clockBox
         let sleeps = sleepRecorder
         let idn = identity
@@ -307,7 +313,9 @@ nonisolated func msg(
 
     func advance(seconds: TimeInterval) { clockBox.advance(seconds) }
 
-    func seed(_ messages: [ParsedMessage], selfAddresses: Set<String> = ["me@example.com"], complete: Bool = true) throws {
+    func seed(_ messages: [ParsedMessage], selfAddresses: Set<String> = ["me@example.com"], complete: Bool = true)
+        throws
+    {
         try db.write { db in
             try SyncStateRepository.setSelfAddresses(db, selfAddresses)
             let gen = Int(try SyncStateRepository.get(db, .syncGeneration) ?? "1") ?? 1

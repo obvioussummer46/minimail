@@ -66,9 +66,15 @@ nonisolated final class SyncEngineTests: XCTestCase {
             routes: [
                 (
                     "GET", "/gmail/v1/users/me/history",
-                    [.json(200, JSONFixtures.history(
-                        records: [JSONFixtures.messagesAdded(id: "n1", thread: "n1", labels: ["INBOX", "UNREAD"])],
-                        historyId: 2001))]
+                    [
+                        .json(
+                            200,
+                            JSONFixtures.history(
+                                records: [
+                                    JSONFixtures.messagesAdded(id: "n1", thread: "n1", labels: ["INBOX", "UNREAD"])
+                                ],
+                                historyId: 2001))
+                    ]
                 )
             ],
             parts: BatchStub.responder(messages: [
@@ -95,8 +101,10 @@ nonisolated final class SyncEngineTests: XCTestCase {
         try h.seedSyncState(historyId: 9000)
         BatchStub.install(
             routes: [
-                ("GET", "/gmail/v1/users/me/history",
-                 [.json(200, JSONFixtures.history(records: [], historyId: 2001))])
+                (
+                    "GET", "/gmail/v1/users/me/history",
+                    [.json(200, JSONFixtures.history(records: [], historyId: 2001))]
+                )
             ], parts: BatchStub.responder())
         await h.sync.run(.afterSend)
         XCTAssertEqual(try h.syncStateValue(.historyId), "9000")
@@ -114,12 +122,28 @@ nonisolated final class SyncEngineTests: XCTestCase {
         let ids = (1...30).map { "m\($0)" }
         BatchStub.install(
             routes: [
-                ("GET", "/gmail/v1/users/me/profile", [.json(200, JSONFixtures.profile(email: "me@example.com", historyId: 5000))]),
-                ("GET", "/gmail/v1/users/me/settings/sendAs",
-                 [.json(200, Data(#"{"sendAs":[{"sendAsEmail":"me@example.com","isPrimary":true,"isDefault":true,"displayName":"Me"}]}"#.utf8))]),
-                ("GET", "/gmail/v1/users/me/labels",
-                 [.json(200, Data(#"{"labels":[{"id":"INBOX","name":"INBOX","type":"system"}]}"#.utf8))]),
-                ("GET", "/gmail/v1/users/me/messages", [.json(200, JSONFixtures.messageList(ids: ids, nextPageToken: "p2"))]),
+                (
+                    "GET", "/gmail/v1/users/me/profile",
+                    [.json(200, JSONFixtures.profile(email: "me@example.com", historyId: 5000))]
+                ),
+                (
+                    "GET", "/gmail/v1/users/me/settings/sendAs",
+                    [
+                        .json(
+                            200,
+                            Data(
+                                #"{"sendAs":[{"sendAsEmail":"me@example.com","isPrimary":true,"isDefault":true,"displayName":"Me"}]}"#
+                                    .utf8))
+                    ]
+                ),
+                (
+                    "GET", "/gmail/v1/users/me/labels",
+                    [.json(200, Data(#"{"labels":[{"id":"INBOX","name":"INBOX","type":"system"}]}"#.utf8))]
+                ),
+                (
+                    "GET", "/gmail/v1/users/me/messages",
+                    [.json(200, JSONFixtures.messageList(ids: ids, nextPageToken: "p2"))]
+                ),
                 ("GET", "/gmail/v1/users/me/history", [.json(200, JSONFixtures.history(records: [], historyId: 5000))]),
             ],
             parts: BatchStub.responder(
@@ -148,8 +172,10 @@ nonisolated final class SyncEngineTests: XCTestCase {
         try h.seedSyncState(historyId: 9000)
         BatchStub.install(
             routes: [
-                ("GET", "/gmail/v1/users/me/history",
-                 [delayed(JSONFixtures.history(records: [], historyId: 9001), 0.5)])
+                (
+                    "GET", "/gmail/v1/users/me/history",
+                    [delayed(JSONFixtures.history(records: [], historyId: 9001), 0.5)]
+                )
             ], parts: BatchStub.responder())
 
         let task = Task { await h.sync.run(.launch) }
@@ -169,8 +195,10 @@ nonisolated final class SyncEngineTests: XCTestCase {
         try h.seedSyncState(historyId: 1000)
         BatchStub.install(
             routes: [
-                ("GET", "/gmail/v1/users/me/history",
-                 [delayed(JSONFixtures.history(records: [], historyId: 1000), 0.2)]),
+                (
+                    "GET", "/gmail/v1/users/me/history",
+                    [delayed(JSONFixtures.history(records: [], historyId: 1000), 0.2)]
+                ),
                 ("GET", "/gmail/v1/users/me/labels", [.json(200, Data(#"{"labels":[]}"#.utf8))]),
             ], parts: BatchStub.responder())
 

@@ -146,7 +146,9 @@ actor SyncEngine {
             await setStatus { $0.lastError = GmailError.rateLimited(retryAfter: nil).userMessage }
         } catch SyncError.accountMismatch {
         } catch let e as SyncError {
-            Log.sync.error("run \(String(describing: reason), privacy: .public) failed: \(String(describing: e), privacy: .public)")
+            Log.sync.error(
+                "run \(String(describing: reason), privacy: .public) failed: \(String(describing: e), privacy: .public)"
+            )
         } catch let e as GmailError {
             await report(e)
         } catch let e as DatabaseError {
@@ -245,7 +247,8 @@ actor SyncEngine {
                 }
                 try await hydrateMetadata(ids: (p.messages ?? []).map(\.id), generation: gen)
                 try await db.write {
-                    try LabelRepository.markViewFetched($0, labelId: labelId, nextPageToken: p.nextPageToken, now: self.nowMs())
+                    try LabelRepository.markViewFetched(
+                        $0, labelId: labelId, nextPageToken: p.nextPageToken, now: self.nowMs())
                 }
             }
 
@@ -276,7 +279,8 @@ actor SyncEngine {
                     switch r {
                     case .success(let m): parsed.append(MessageParser.parse(m))
                     case .failure(.notFound): break
-                    case .failure(let e): Log.sync.error("hydrate \(id, privacy: .public) \(String(describing: e), privacy: .public)")
+                    case .failure(let e):
+                        Log.sync.error("hydrate \(id, privacy: .public) \(String(describing: e), privacy: .public)")
                     }
                 }
                 let sawRateLimit = results.values.contains {
@@ -458,18 +462,24 @@ actor SyncEngine {
                 if missing.isEmpty { return }
                 for chunk in missing.chunked(10) {
                     try await Log.measure(.bodyLoad) {
-                        let results = try await self.call { try await self.gmail.getMessages(ids: chunk, format: .full) }
+                        let results = try await self.call {
+                            try await self.gmail.getMessages(ids: chunk, format: .full)
+                        }
                         var built: [PreparedBody] = []
                         var goneBuilt = Set<String>()
                         var unavailableBuilt = Set<String>()
                         for (id, r) in results {
                             switch r {
                             case .success(let m):
-                                if m.payload == nil { unavailableBuilt.insert(id) }
-                                else { built.append(try await self.prepareBody(m)) }
+                                if m.payload == nil {
+                                    unavailableBuilt.insert(id)
+                                } else {
+                                    built.append(try await self.prepareBody(m))
+                                }
                             case .failure(.notFound): goneBuilt.insert(id)
                             case .failure(let e):
-                                Log.sync.error("body \(id, privacy: .public) \(String(describing: e), privacy: .public)")
+                                Log.sync.error(
+                                    "body \(id, privacy: .public) \(String(describing: e), privacy: .public)")
                             }
                         }
                         let prepared = built

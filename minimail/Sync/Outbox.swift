@@ -157,7 +157,8 @@ actor Outbox {
                                 _ = try OutboxRepository.discardModify(db, opId: op.id)
                                 Log.outbox.error("modify \(op.id, privacy: .public) discarded (forbidden)")
                             case .failure(.forbidden):
-                                try Self.retry(db, op: op, error: .forbidden(reason: "dailyLimitExceeded"), now: now, random: rnd)
+                                try Self.retry(
+                                    db, op: op, error: .forbidden(reason: "dailyLimitExceeded"), now: now, random: rnd)
                                 o.stop = true
                                 o.quota = true
                             case .failure(.unauthorized):
@@ -206,7 +207,8 @@ actor Outbox {
         let now = nowMs()
         let due: Int64? = try? await db.read { db -> Int64? in
             var times = try OutboxRepository.pendingModifies(db).map(\.nextAttemptAt)
-            times += try OutboxRecord
+            times +=
+                try OutboxRecord
                 .filter(Column("kind") == "send" && Column("state") == "pending")
                 .fetchAll(db).map(\.nextAttemptAt)
             return times.filter { $0 > now }.min()
@@ -239,11 +241,15 @@ actor Outbox {
     // MARK: send
 
     private enum SendOutcome: Equatable { case `continue`, stop }
-    private enum AttachmentsResult { case success([OutgoingAttachment]); case permanent(String); case transient(GmailError) }
+    private enum AttachmentsResult {
+        case success([OutgoingAttachment]); case permanent(String); case transient(GmailError)
+    }
 
     private func performSend(_ op: OutboxRecord) async -> SendOutcome {
         guard let job = op.sendJob else {
-            try? await db.write { try OutboxRepository.fail($0, opId: op.id, error: GmailError.decoding("sendJob").userMessage) }
+            try? await db.write {
+                try OutboxRepository.fail($0, opId: op.id, error: GmailError.decoding("sendJob").userMessage)
+            }
             return .continue
         }
 
@@ -354,7 +360,8 @@ actor Outbox {
                     } catch GmailError.notFound {
                         // fall through to re-resolve
                     } catch let e as GmailError
-                        where e == .offline || e == .unauthorized || e.isTransient || e == .cancelled {
+                        where e == .offline || e == .unauthorized || e.isTransient || e == .cancelled
+                    {
                         return .transient(e)
                     } catch let e as GmailError {
                         return .permanent(e.userMessage)
@@ -376,7 +383,8 @@ actor Outbox {
                     } catch GmailError.notFound {
                         return .permanent("Original message no longer available")
                     } catch let e as GmailError
-                        where e == .offline || e == .unauthorized || e.isTransient || e == .cancelled {
+                        where e == .offline || e == .unauthorized || e.isTransient || e == .cancelled
+                    {
                         return .transient(e)
                     } catch let e as GmailError {
                         return .permanent(e.userMessage)

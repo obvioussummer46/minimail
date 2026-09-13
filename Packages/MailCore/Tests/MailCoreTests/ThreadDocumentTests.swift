@@ -3,10 +3,10 @@ import XCTest
 @testable import MailCore
 
 final class ThreadDocumentTests: XCTestCase {
-    private let L = ThemeCSSTokens(
+    private let lightTokens = ThemeCSSTokens(
         background: "#ffffff", surface: "#f2f2f7", text: "#000000", secondaryText: "#3c3c43", accent: "#007aff",
         separator: "#c6c6c8", link: "#007aff", cardBackground: "#ffffff")
-    private let D = ThemeCSSTokens(
+    private let darkTokens = ThemeCSSTokens(
         background: "#000000", surface: "#1c1c1e", text: "#ffffff", secondaryText: "#ebebf5", accent: "#0a84ff",
         separator: "#38383a", link: "#0a84ff", cardBackground: "#ffffff")
 
@@ -23,16 +23,20 @@ final class ThreadDocumentTests: XCTestCase {
             attachments: attachments)
     }
 
-    private func render(_ subject: String, _ messages: [ThreadDocumentMessage], forced: String? = nil, images: Bool = false)
+    private func render(
+        _ subject: String, _ messages: [ThreadDocumentMessage], forced: String? = nil, images: Bool = false
+    )
         -> String
     {
         ThreadDocument.render(
-            subject: subject, messages: messages, light: L, dark: D, forcedScheme: forced, imagesAllowed: images)
+            subject: subject, messages: messages, light: lightTokens, dark: darkTokens, forcedScheme: forced,
+            imagesAllowed: images)
     }
 
     func testCSPImagesOff() {
         let html = render("S", [msg("a")])
-        let csp = "default-src 'none'; img-src data: minimail-cid:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+        let csp =
+            "default-src 'none'; img-src data: minimail-cid:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
         XCTAssertTrue(html.contains("content=\"\(csp)\""), html)
         XCTAssertEqual(ThreadDocument.csp(imagesAllowed: false), csp)
     }
@@ -43,8 +47,10 @@ final class ThreadDocumentTests: XCTestCase {
     }
 
     func testForcedSchemeAttribute() {
-        XCTAssertTrue(render("S", [msg("a")], forced: "dark").hasPrefix("<!doctype html><html data-theme=\"dark\"><head>"))
-        XCTAssertTrue(render("S", [msg("a")], forced: "light").hasPrefix("<!doctype html><html data-theme=\"light\"><head>"))
+        XCTAssertTrue(
+            render("S", [msg("a")], forced: "dark").hasPrefix("<!doctype html><html data-theme=\"dark\"><head>"))
+        XCTAssertTrue(
+            render("S", [msg("a")], forced: "light").hasPrefix("<!doctype html><html data-theme=\"light\"><head>"))
         XCTAssertTrue(render("S", [msg("a")], forced: nil).hasPrefix("<!doctype html><html><head>"))
         XCTAssertTrue(render("S", [msg("a")], forced: "blue").hasPrefix("<!doctype html><html><head>"))
     }
@@ -176,7 +182,7 @@ final class ThreadDocumentTests: XCTestCase {
     }
 
     func testEmptyDocument() {
-        let empty = ThreadDocument.empty(light: L, dark: D)
+        let empty = ThreadDocument.empty(light: lightTokens, dark: darkTokens)
         let rendered = render("", [])
         let withoutH1 = rendered.replacingOccurrences(
             of: "<h1 class=\"mm-subject\">(No subject)</h1>\n", with: "")
