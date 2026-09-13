@@ -1,3 +1,6 @@
 // Owner-specific. Team ID from https://developer.apple.com/account (Membership details). Not a secret.
 #include "Google.xcconfig"
 DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
+// Local, git-ignored overrides (real GOOGLE_CLIENT_ID / GOOGLE_REVERSED_CLIENT_ID / DEVELOPMENT_TEAM).
+// Absent in CI, where the Google.xcconfig placeholders are used instead.
+#include? "Secrets.xcconfig"
