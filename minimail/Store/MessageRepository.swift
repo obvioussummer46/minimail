@@ -83,7 +83,7 @@ nonisolated enum MessageRepository {
     /// E = effective(S, active modify deltas affecting the id); flags from E. Returns thread ids of found rows.
     static func recomputeEffective(_ db: Database, messageIds: Set<String>) throws -> Set<String> {
         guard !messageIds.isEmpty else { return [] }
-        let ops = try OutboxRepository.activeModifies(db)
+        let ops = try OutboxRepository.modifiesAffectingEffective(db)
         var threadIds = Set<String>()
         for chunk in Array(messageIds).chunked(chunkSize) {
             let placeholders = databaseQuestionMarks(count: chunk.count)

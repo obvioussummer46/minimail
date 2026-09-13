@@ -217,6 +217,15 @@ nonisolated enum OutboxRepository {
             db, sql: "SELECT * FROM outbox WHERE kind = 'modify' AND state IN ('pending','inFlight') ORDER BY id")
     }
 
+    /// Modify ops that contribute to effective labels: pending, inFlight, AND failed. A failed op's optimistic
+    /// change persists (the archive stays visually applied) until it is acked, discarded, or rearmed — which is
+    /// what makes `rearmFailedModifies` a no-op on E (spec §4.11 step 3). id ASC.
+    static func modifiesAffectingEffective(_ db: Database) throws -> [OutboxRecord] {
+        try OutboxRecord.fetchAll(
+            db,
+            sql: "SELECT * FROM outbox WHERE kind = 'modify' AND state IN ('pending','inFlight','failed') ORDER BY id")
+    }
+
     static func activeThreadIds(_ db: Database) throws -> Set<String> {
         Set(
             try String.fetchAll(

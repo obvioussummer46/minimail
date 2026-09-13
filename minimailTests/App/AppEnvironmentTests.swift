@@ -1,3 +1,5 @@
+import GRDB
+import MailCore
 import SwiftUI
 import UIKit
 import XCTest
@@ -167,5 +169,46 @@ nonisolated final class AppEnvironmentTests: XCTestCase {
             if let found = findView(sub, identifier: identifier) { return found }
         }
         return nil
+    }
+
+    // MARK: Module 06 — database wiring
+
+    @MainActor
+    func testTestingModeOpensTemporaryDatabase() throws {
+        cleanTestingItem()
+        defer { cleanTestingItem() }
+        let env = AppEnvironment(testing: true)
+        XCTAssertTrue(env.databaseDirectory.path.contains("minimail-db-"))
+        let email = try env.db.read { try SyncStateRepository.get($0, .accountEmail) }
+        XCTAssertNil(email)
+    }
+
+    @MainActor
+    func testCachedEmailReadFromSyncState() throws {
+        cleanTestingItem()
+        defer { cleanTestingItem() }
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("mm-\(UUID().uuidString)")
+        defer { try? AppDatabase.destroy(directory: dir) }
+        let seedPool = try AppDatabase.open(directory: dir)
+        try seedPool.write { try SyncStateRepository.set($0, .accountEmail, "x@example.com") }
+        try seedPool.close()
+
+        let env = AppEnvironment(testing: true, databaseDirectory: dir)
+        XCTAssertEqual(env.auth.state, .needsReauth(email: "x@example.com"))
+    }
+
+    @MainActor
+    func testWipeAccountDataResetsDatabase() async throws {
+        cleanTestingItem()
+        defer { cleanTestingItem() }
+        let env = AppEnvironment(testing: true)
+        try TestDatabase.seed(env.db, [TestDatabase.parsed(id: "m1", internalDate: 1, labels: ["INBOX"])])
+        let before = try await env.db.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM message") }
+        XCTAssertEqual(before, 1)
+
+        await env.auth.hooks.wipeAccountData()
+
+        let after = try await env.db.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM message") }
+        XCTAssertEqual(after, 0)
     }
 }

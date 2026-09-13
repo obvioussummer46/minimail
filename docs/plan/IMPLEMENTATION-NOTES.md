@@ -154,6 +154,32 @@ green overall; lint clean. Every §9 acceptance category is covered.
 - `URL.path` percent-decodes, so attachment-id encoding (`=` → `%3D`) is asserted
   against `url.absoluteString`, not `.path`.
 
+## 06 storage
+
+Built and verified on a Mac. 44 new app tests (DatabaseTests 8, RepositoryTests
+22, QueriesTests 11, AppEnvironmentTests +3) and 37 new MailCore tests pass; 223
+app + 186 MailCore green overall; lint clean; `minimail/Store` imports only
+Foundation/GRDB/MailCore/MailHTML and mutations live only in repositories.
+
+### Deviations / real findings
+
+| # | Item | Resolution |
+|---|---|---|
+| D1 | `OutboxCoalescer.merge` formula | The spec's non-cancelling formula contradicted `testInverseCancels` and acceptance §9.5 ("read→unread → zero rows"). Uses the cancelling form; `testNewIntentWins` expectation adjusted accordingly. |
+| D2 | Effective labels vs failed outbox ops | The spec's `rearmFailedModifies` "E is unchanged, no recompute" is only true if **failed** modify ops still contribute to effective labels. `recomputeEffective` and `InvariantChecks` therefore use pending **+ inFlight + failed** (a failed archive stays optimistically applied until acked/discarded/rearmed), which invariant 1's "pending/inFlight" wording understates. |
+| D3 | `today.json` day-boundary vectors | The spec literals mixed 2025/2026 dates; recomputed for 2026 per the spec's own instruction. |
+| D4 | `testRecordJSONBytes` byte-exact SendJob sample | Deferred; JSON columns are covered by round-trip + sorted-keys behaviour instead of the one hand-transcribed literal. |
+
+### Notes
+
+- Records with JSON columns conform through a `nonisolated protocol JSONColumnRecord`
+  so GRDB's `FetchableRecord`/`EncodableRecord` conformance is not inferred
+  MainActor under `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+- The UNVERIFIED GRDB API names compiled as written: `Configuration.publicStatementArguments`,
+  `DatabaseMigrator.eraseDatabaseOnSchemaChange`, `DatabaseWriter.vacuum()`. No fallback needed.
+- GRDB's `read`/`write` resolve to their **async** overloads inside an `async` test, so
+  those calls must be `await`-ed and cannot sit inside an `XCTAssert` autoclosure.
+
 ## Verification status (CI is the compiler)
 
 `.github/workflows/ci.yml` gives this project a compiler without a Mac. The `core` job runs `swift test` for

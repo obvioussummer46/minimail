@@ -12,7 +12,7 @@ nonisolated enum InvariantChecks {
 
     static func assertAll(_ db: Database, file: StaticString = #filePath, line: UInt = #line) throws {
         let messages = try MessageRecord.fetchAll(db)
-        let ops = try OutboxRepository.activeModifies(db)
+        let ops = try OutboxRepository.modifiesAffectingEffective(db)
 
         // 1 + 2: effective labels and flags per message.
         for m in messages {
