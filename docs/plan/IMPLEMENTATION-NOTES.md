@@ -209,3 +209,52 @@ verified, not merely written.
 - `nonisolated` on a type declaration compiles in this toolchain, so `Log`, `Formatters`, `Settings` and
   `ThemeChoice` are fine as written.
 - Swift on the Linux runner is 6.1.3.
+
+## 08 html-rendering (MailCore half: T08.1–T08.4)
+
+The dependency-free half (MailHTML `Sanitizer`/`StyleScrubber`/`TrackingPixel`/`DarkStrategyClassifier`/
+`SignatureSanitizer`/`QuoteExtractor` and MailCore `ThreadDocument`) is built and green: 56 new tests,
+270 MailCore/MailHTML tests total. Built ahead of module 07 because `SyncEngine.prepareBody` needs
+`Sanitizer` to compile the app target (user decision, 2026-09-13). The app-target `Web/` half (T08.5–T08.8:
+`WebViewHost`, `CIDSchemeHandler`, `InlineImageStore`, `MailWebView`, `LinkPolicy`, `WebBridge`, the `[08]`
+`AppEnvironment` wiring) is module-10 infrastructure and is **not yet built**.
+
+### Deviations / SwiftSoup findings
+
+| # | Item | Resolution |
+|---|---|---|
+| D1 | `cidPathAllowed` | Spec subtracts only `/%` from `urlPathAllowed`, which keeps `@`; the tests expect an `@` in a Content-ID to encode as `%40`, so `@` is subtracted too. |
+| D2 | SwiftSoup void tags | SwiftSoup always serialises `<img … />` (XHTML) even in HTML syntax; the app normalises ` />`→`>` (`Sanitizer.normalizeVoidTags`). |
+| D3 | SwiftSoup source-patch serialization | With `prettyPrint == false`, this SwiftSoup version serialises a parsed doc from its source buffer patched per *dirty* node, and `attr`/`removeAttr` do **not** mark nodes dirty — so those mutations vanish. `Sanitizer.compactBodyHTML` serialises a `doc.copy()` (no source buffer) instead, giving compact output that reflects mutations. |
+| D4 | `MailHTMLTests` deps | Added `SwiftSoup` to the test target (classifier tests need `SwiftSoup.Document`). |
+
+## 07 sync-outbox (T07.3–T07.9 production + core tests)
+
+All production code (`SyncStatus`, `SyncEngine`, `Outbox`/`OutboxIdentitySource`, `MailActions`,
+`Maintenance`, `BackgroundRefresh`, `AppEnvironment`/`MinimailApp` `[07]` wiring) is built and the app
+compiles. A shared harness (`SyncTestSupport`) plus 12 core `SyncEngineTests`/`OutboxTests` pass on the
+iPhone 17 simulator. The remaining suites (`SendTests`, `ConflictTests`, `ResyncTests`, `MaintenanceTests`,
+`BackgroundRefreshTests`, and the rest of `SyncEngineTests`/`OutboxTests` toward the spec's ~113) are **not
+yet written**; they build on the same harness.
+
+### Deviations
+
+| # | Item | Resolution |
+|---|---|---|
+| D1 | `OutboxRepository.retryLater` | 06 ships `retryLater(…, error: String, countsAsAttempt: Bool, nextAttemptAt: Int64)` (not `error:now:random:`). `Outbox` computes the `Backoff.outbox` delay and passes `nextAttemptAt`; 06 decides pending-vs-failed by the 8/5 threshold. |
+| D2 | `MaintenanceRepository` (spec D2) not created | 06 already exposes `ThreadRepository.deleteExpired`, `BodyRepository.pruneBodies`, `OutboxRepository.deleteFailedSends`; `Maintenance.cleanup` calls those, so no SQL lives in `App/` and the extra repo file is unnecessary. |
+| D3 | `replaceDatabase` / rebuilt `actions` unused | `AppEnvironment.db` is one stable `DatabasePool` reset in place (`AppDatabase.reset`), so the O1 wipe tail is a no-op; the methods stay for API completeness. |
+| D4 | `BackgroundRefresh.schedule` | Uses `BGTaskScheduler.submit(_:)` on all OS versions; the UNVERIFIED iOS 27 async `submitTaskRequest` branch is omitted for SDK compatibility. |
+
+### Real bug found by the tests
+
+- The Outbox drain's trailing status update set `status.isOffline = sawOffline` unconditionally. Because
+  every `SyncEngine.execute` ends with a drain, a no-op drain right after an offline request wiped the flag
+  the run had just raised. Fixed: the drain only *raises* `isOffline`; a successful request clears it via
+  `SyncEngine.noteResult`.
+
+### SwiftSoup/GRDB gotcha in the harness
+
+- Multi-statement `map` closures returning a `#"…\#(…)…"#` raw string literal in a file that imports GRDB
+  resolve to GRDB's `SQL` (which has `[SQL].joined(separator:)`), not `String`, silently producing
+  `SQL(elements: …)` text. Annotate such closures `-> String` (`JSONFixtures.modifyResponse`).
