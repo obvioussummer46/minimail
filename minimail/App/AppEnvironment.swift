@@ -32,6 +32,13 @@ import os
     /// The directory holding the database file (temporary when testing).
     @ObservationIgnored let databaseDirectory: URL
 
+    // [07] Sync + outbox. Constructed in `init` (no I/O).
+    @ObservationIgnored let syncStatus: SyncStatus
+    @ObservationIgnored let outbox: Outbox
+    @ObservationIgnored let sync: SyncEngine
+    @ObservationIgnored let actions: MailActions
+    @ObservationIgnored let identitySource: OutboxIdentitySource
+
     /// Injected by tests (module 14) before constructing an environment: `[StubURLProtocol.self]`. The default blocks
     /// the network in the test host so a launch can never reach Gmail.
     nonisolated(unsafe) static var testURLProtocolClasses: [AnyClass] = [OfflineURLProtocol.self]
@@ -124,7 +131,23 @@ import os
         )
         self.limiter = limiter
         self.gmail = gmail
-        // [07][08] SyncStatus, SyncEngine, Outbox, MailActions, WebViewHost — construction only
+        // [07] SyncStatus, Outbox, SyncEngine, MailActions — construction only (no I/O).
+        let syncStatus = SyncStatus()
+        let identitySource = OutboxIdentitySource(db: db, settings: settings)
+        let outbox = Outbox(
+            db: db, gmail: gmail, status: syncStatus,
+            identity: { [identitySource] in await identitySource.current() },
+            random: { Double.random(in: 0..<1) })
+        let sync = SyncEngine(
+            db: db, gmail: gmail, outbox: outbox, status: syncStatus,
+            settings: { [settings] in await settings.snapshot }, auth: auth)
+        outbox.bind(sync: sync)
+        self.syncStatus = syncStatus
+        self.identitySource = identitySource
+        self.outbox = outbox
+        self.sync = sync
+        self.actions = MailActions(db: db, outbox: outbox, sync: sync)
+        // [08] WebViewHost — construction only
 
         // Hooks owned by 01's objects (06/07/08 add theirs at the marked points).
         auth.hooks.loginHint = { [settings] in settings.settings.lastSignedInEmail }
@@ -138,7 +161,13 @@ import os
                 }
             }.value
         }
-        // [07] auth.hooks.prepareSignOut = { … cancel + await sync/drain … } ; auth.hooks.didSignIn = { Task { await sync.run(.launch) } }
+        // [07] cancel the running sync/drain on sign-out; kick a launch sync after sign-in.
+        // No wipe tail: `db` is one stable pool reset in place (spec §10 O1), so `replaceDatabase` is unnecessary.
+        auth.hooks.prepareSignOut = { [sync, outbox] in
+            await sync.cancelAll()
+            await outbox.cancelAll()
+        }
+        auth.hooks.didSignIn = { [sync] in Task { await sync.run(.launch) } }
 
         Log.ui.debug("AppEnvironment ready testing=\(testing, privacy: .public)")
     }
@@ -153,7 +182,9 @@ import os
         await Task.yield()
         let loaded = await tokens.load()
         auth.handleTokenLoad(succeeded: loaded)
-        // [07] release in-flight outbox rows, then await sync.run(.launch)
+        // [07] step b: a kill mid-request left rows inFlight → back to pending; then the launch sync.
+        try? await db.write { try OutboxRepository.releaseInFlight($0) }
+        await sync.run(.launch)
 
         if isTesting { return }
 
@@ -161,7 +192,10 @@ import os
         // [08] await webHost.prepare()
 
         try? await Task.sleep(for: .seconds(1))
-        // [07] BackgroundRefresh.schedule(); await Maintenance.cleanup(db, now:); await sync.updateBadge()
+        // [07] step d
+        BackgroundRefresh.schedule()
+        await Maintenance.cleanup(db, now: Date())
+        await sync.updateBadge()
     }
 
     /// Ends the cold-start interval the first time the list paints. Later calls do nothing.
