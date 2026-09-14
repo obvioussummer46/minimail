@@ -194,7 +194,10 @@ actor Outbox {
                 let now2 = nowMs()
                 let send = try await db.write { try OutboxRepository.claimSend($0, now: now2) }
                 if let send {
-                    if await performSend(send) == .stop { break loop }
+                    if case .stop(let offline) = await performSend(send) {
+                        if offline { sawOffline = true }
+                        break loop
+                    }
                 }
                 if mods.isEmpty && send == nil { break loop }
             } catch {
@@ -240,7 +243,9 @@ actor Outbox {
 
     // MARK: send
 
-    private enum SendOutcome: Equatable { case `continue`, stop }
+    /// `stop(offline:)` carries the offline flag back to `drain`, which owns `status.isOffline`: a send that
+    /// fails offline has to raise it just like a modify does, or the user sees a stuck outbox and no reason.
+    private enum SendOutcome: Equatable { case `continue`; case stop(offline: Bool) }
     private enum AttachmentsResult {
         case success([OutgoingAttachment]); case permanent(String); case transient(GmailError)
     }
@@ -265,7 +270,7 @@ actor Outbox {
                 }
             } catch let e as GmailError where e == .offline || e == .unauthorized || e.isTransient {
                 try? await retryLater(op, e)
-                return .stop
+                return .stop(offline: e == .offline)
             } catch {
                 Log.outbox.error("outbox.send.duplicate-risk \(op.id, privacy: .public)")
             }
@@ -289,7 +294,7 @@ actor Outbox {
             return .continue
         case .transient(let e):
             try? await retryLater(op, e)
-            return .stop
+            return .stop(offline: e == .offline)
         }
 
         let (me, style, signature) = await identity()
@@ -322,21 +327,21 @@ actor Outbox {
             switch e {
             case .offline, .unauthorized, .cancelled:
                 try? await retryLater(op, e)
-                return .stop
+                return .stop(offline: e == .offline)
             case .network, .server, .rateLimited, .batchMalformed:
                 if op.attempts >= Self.maxSendAttempts {
                     try? await db.write { try OutboxRepository.fail($0, opId: op.id, error: e.userMessage) }
                     return .continue
                 }
                 try? await retryLater(op, e)
-                return .stop
+                return .stop(offline: false)
             default:
                 try? await db.write { try OutboxRepository.fail($0, opId: op.id, error: e.userMessage) }
                 return .continue
             }
         } catch {
             try? await retryLater(op, .cancelled)
-            return .stop
+            return .stop(offline: false)
         }
     }
 

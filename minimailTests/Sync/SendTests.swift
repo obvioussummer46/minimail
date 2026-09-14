@@ -109,6 +109,16 @@ nonisolated final class SendTests: XCTestCase {
         }
     }
 
+    /// `SyncHarness.setSettings` feeds the engine's own snapshot closure; the signature reaches the MIME builder
+    /// through `OutboxIdentitySource`, which reads the separate store the harness gave it.
+    @MainActor
+    private func setSignature(_ harness: SyncHarness, _ html: String) {
+        harness.identity.settings.update {
+            $0.signatureHTML = html
+            $0.signatureEnabled = true
+        }
+    }
+
     @MainActor
     private func storedAttachmentId(_ harness: SyncHarness) throws -> String? {
         try harness.db.read { try BodyRepository.attachment($0, messageId: "a1", partId: "1")?.attachmentId }
@@ -152,8 +162,9 @@ nonisolated final class SendTests: XCTestCase {
 
         await harness.outbox.drain()
 
-        XCTAssertEqual(paths(), [Self.att1Path, Self.sendPath])
-        let request = try XCTUnwrap(StubURLProtocol.recorded.last)
+        // `afterSend()` kicks a `.afterSend` sync run, so anything after the POST belongs to that, not to the send.
+        XCTAssertEqual(Array(paths().prefix(2)), [Self.att1Path, Self.sendPath])
+        let request = try XCTUnwrap(StubURLProtocol.recorded.first(where: { $0.path == Self.sendPath }))
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: try XCTUnwrap(request.body)) as? [String: Any])
         XCTAssertEqual(json["threadId"] as? String, "a1")
         XCTAssertTrue(try sentMIME().contains("Subject: Fwd:"))
@@ -222,8 +233,9 @@ nonisolated final class SendTests: XCTestCase {
         await harness.outbox.drain()
 
         XCTAssertFalse(paths().contains(Self.sendPath), "a message already delivered must not be POSTed again")
-        let query = try XCTUnwrap(StubURLProtocol.recorded.first?.query)
-        XCTAssertTrue(query.contains("rfc822msgid"), query)
+        XCTAssertTrue(
+            StubURLProtocol.recorded.contains { ($0.query ?? "").contains("rfc822msgid") },
+            "the duplicate check must search by rfc822msgid")
         XCTAssertTrue(try harness.outboxRows().isEmpty)
     }
 
@@ -313,7 +325,8 @@ nonisolated final class SendTests: XCTestCase {
 
         await harness.outbox.drain()
 
-        XCTAssertTrue(StubURLProtocol.recorded.isEmpty, "the budget is checked before any request")
+        XCTAssertFalse(paths().contains(Self.sendPath), "the budget is checked before any request")
+        XCTAssertFalse(paths().contains(Self.att1Path), "an over-budget job must not fetch its attachments")
         let row = try XCTUnwrap(try harness.outboxRows().first)
         XCTAssertEqual(row.state, .failed)
         XCTAssertEqual(row.lastError, "Attachments too large to forward (25.0 MB)")
@@ -401,10 +414,7 @@ nonisolated final class SendTests: XCTestCase {
     @MainActor
     func testSignatureIncludedWhenEnabled() async throws {
         let harness = try harness()
-        harness.setSettings {
-            $0.signatureHTML = "<b>Sig</b>"
-            $0.signatureEnabled = true
-        }
+        setSignature(harness, "<b>Sig</b>")
         try await drainNoAttachments(harness, job(attachments: [], includeSignature: true))
 
         let mime = decodedQuotedPrintable(try sentMIME())
@@ -415,10 +425,7 @@ nonisolated final class SendTests: XCTestCase {
     @MainActor
     func testSignatureOmittedWhenJobSaysNo() async throws {
         let harness = try harness()
-        harness.setSettings {
-            $0.signatureHTML = "<b>Sig</b>"
-            $0.signatureEnabled = true
-        }
+        setSignature(harness, "<b>Sig</b>")
         try await drainNoAttachments(harness, job(attachments: [], includeSignature: false))
 
         let mime = decodedQuotedPrintable(try sentMIME())
