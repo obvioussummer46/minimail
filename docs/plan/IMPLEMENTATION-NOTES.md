@@ -313,3 +313,25 @@ T10.8 (device pass) is still open — it cannot be scripted.
    `data-src="…"` ends in `src="…"`, so the assertion can never hold. Both halves are now matched whole.
 6. §7.3 `InlineImageStoreTests` seeds a body without recomputing the thread aggregates, so
    `thread.bodiesMissing` stays 1 and invariant 6 trips in `testReresolveOn404`.
+
+## 11 compose (T11.1–T11.6)
+
+`minimail/Features/Compose/` is built: `ComposeModel` (with `ComposePhase`, `ComposeAttachmentItem`,
+`ComposeAddressField`, `ComposeDraftBuilder`) and `ComposeScreen`. The interim `ComposeScreen` placeholder is
+gone. New app tests: `ComposeModelTests` (27), `ComposeViewsTests` (12). Whole suite green at 374 tests.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D18 | §6.4 `Section("Attachments") { … } footer: { … }` | `Section { … } header: { Text("Attachments") } footer: { … }` | SwiftUI has no `Section(_ titleKey:content:footer:)`; the spec's form does not compile. |
+| D19 | §6.1 builds the whole sheet in one `body` | `body` → `chrome` → `content`, a `@ToolbarContentBuilder`, and a `ComposeForm` / section view per group | The same type-checker budget that forced D14 in module 10. Applied up front here. |
+| D20 | §6.7 sets focus from the screen's `.onChange(of: model.phase)` | `load()` sets it right after `await makeDraft()` | One place, one assignment, and no second observation of a value the screen already awaited. |
+
+### Spec errors found by CI (running total: 8)
+
+7. §6.4's attachments section uses a `Section` initializer that does not exist (see D18).
+8. §7.1 `testQuoteWaitsForBodyThenEnables` expects `quotePreview == ""` before the body arrives, but §4.4 falls
+   the provisional quote text back to `original.snippet`; the fixture's snippet has to be empty for that.
+   `testSendEnqueuesOneOutboxRow` likewise expects the row to still read `transmitState == .notSent`, but
+   `MailActions.send` awaits `outbox.drain()`, which sets `.maybeSent` before the POST.

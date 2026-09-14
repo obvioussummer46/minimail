@@ -208,6 +208,8 @@ import os
         // [07] step b: a kill mid-request left rows inFlight → back to pending; then the launch sync.
         try? await db.write { try OutboxRepository.releaseInFlight($0) }
         await sync.run(.launch)
+        // The launch sync is what fills `syncState.sendAsSignature`, so this has to follow it.
+        await SignatureImport.adoptGmailSignatureIfUnset(db: db, settings: settings)
 
         if isTesting { return }
 
