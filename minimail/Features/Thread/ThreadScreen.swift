@@ -1,0 +1,205 @@
+import MailCore
+import SwiftUI
+import UIKit
+import WebKit
+
+/// The pushed thread screen (architecture §8.1, §8.4). Pure presentation: every decision lives in `ThreadModel`.
+struct ThreadScreen: View {
+    private let threadId: String
+    @State private var model: ThreadModel?
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
+    @ThemeTokensReader private var themeTokens
+
+    init(threadId: String) { self.threadId = threadId }
+
+    var body: some View {
+        Group {
+            if let model {
+                ThreadContentView(model: model, tokens: themeTokens)
+            } else {
+                themeTokens.background.ignoresSafeArea()
+            }
+        }
+        .navigationTitle(model?.title ?? "")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .bottomBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                actionButton(.replyAll) { model?.replyAll() }
+                    .disabled(!(model?.canCompose ?? false))
+                Spacer()
+                actionButton(.forward) { model?.forward() }
+                    .disabled(!(model?.canCompose ?? false))
+                Spacer()
+                actionButton(.archive) { Task { await model?.archive() } }
+                Spacer()
+                actionButton(.toggleRead) { Task { await model?.toggleRead() } }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if model?.loading == true {
+                    ProgressView()
+                        .accessibilityLabel("Loading thread")
+                        .accessibilityIdentifier("thread.loading")
+                }
+            }
+        }
+        .onAppear {
+            ensureModel()
+            model?.systemSchemeChanged(colorScheme)
+            model?.attachWeb(openURL: { openURL($0) })
+        }
+        .task {
+            ensureModel()
+            await model?.appeared()
+        }
+        .task {
+            for await _ in ThreadScreen.contentSizeChangeStream() { model?.contentSizeChanged() }
+        }
+        .onDisappear { model?.detachWeb() }
+        .onChange(of: colorScheme) { _, scheme in model?.systemSchemeChanged(scheme) }
+        .onChange(of: env.theme.choice) { _, _ in model?.systemSchemeChanged(colorScheme) }
+        .onChange(of: model?.shouldDismiss ?? false) { _, shouldDismiss in if shouldDismiss { dismiss() } }
+        .sheet(item: composeBinding) { input in ComposeScreen(input: input) }
+        .quickLookPreview(previewBinding)
+        .sensoryFeedback(.impact(weight: .light), trigger: model?.lastActionId ?? 0)
+    }
+
+    /// Idempotent: `.onAppear` and `.task` both call it and their order is not guaranteed.
+    private func ensureModel() {
+        if model == nil { model = ThreadModel(env: env, threadId: threadId) }
+    }
+
+    private func actionButton(_ action: ThreadAction, perform: @escaping () -> Void) -> some View {
+        let isUnread = model?.isUnread ?? false
+        return Button(action: perform) {
+            Image(systemName: action.symbol(isUnread: isUnread))
+        }
+        .accessibilityLabel(action.title(isUnread: isUnread))
+        .accessibilityIdentifier(action.rawValue)
+    }
+
+    /// `@Bindable` cannot be declared for a nested object inside `body`, so both presentations use plain bindings.
+    private var composeBinding: Binding<ComposeInput?> {
+        Binding(get: { model?.composeInput }, set: { model?.composeInput = $0 })
+    }
+
+    private var previewBinding: Binding<URL?> {
+        Binding(get: { model?.attachments.previewURL }, set: { model?.attachments.previewURL = $0 })
+    }
+
+    /// Yields once per `UIContentSizeCategory.didChangeNotification` (architecture §14 #26).
+    nonisolated static func contentSizeChangeStream() -> AsyncStream<Void> {
+        AsyncStream<Void> { continuation in
+            let box = ThreadObserverTokenBox([
+                NotificationCenter.default.addObserver(
+                    forName: UIContentSizeCategory.didChangeNotification, object: nil, queue: .main
+                ) { _ in
+                    continuation.yield(())
+                }
+            ])
+            continuation.onTermination = { _ in
+                box.tokens.forEach { NotificationCenter.default.removeObserver($0) }
+            }
+        }
+    }
+}
+
+/// Carries NotificationCenter observer tokens (not `Sendable`) into the `@Sendable` `onTermination` closure.
+nonisolated private final class ThreadObserverTokenBox: @unchecked Sendable {
+    let tokens: [any NSObjectProtocol]
+    init(_ tokens: [any NSObjectProtocol]) { self.tokens = tokens }
+}
+
+/// The web view plus its overlays; split out so `@Bindable var model` is available.
+private struct ThreadContentView: View {
+    @Bindable var model: ThreadModel
+    let tokens: ThemeTokens
+    @Environment(AppEnvironment.self) private var env
+
+    var body: some View {
+        ZStack {
+            tokens.background.ignoresSafeArea()
+            MailWebView(
+                host: env.webHost,
+                document: model.document,
+                revision: model.revision,
+                interfaceStyle: env.theme.interfaceStyle,
+                imagesAllowed: model.documentImagesAllowed,
+                backgroundColor: UIColor(tokens.background)
+            )
+            .accessibilityIdentifier("thread.web")
+            .ignoresSafeArea(edges: .bottom)
+        }
+        .safeAreaInset(edge: .top, spacing: 0) { noticeRow }
+        .overlay(alignment: .center) { downloadingOverlay }
+    }
+
+    /// A failed attachment is the more recent, more explicit action, so it wins over a thread-load error.
+    @ViewBuilder private var noticeRow: some View {
+        if case .failed(let text) = model.attachments.state {
+            ThreadNotice(
+                text: text, actionTitle: nil, action: nil, tokens: tokens,
+                dismiss: { model.attachments.dismissError() })
+        } else if let text = model.errorText ?? model.observationError {
+            ThreadNotice(
+                text: text, actionTitle: "Retry", action: { Task { await model.retryLoad() } },
+                tokens: tokens, dismiss: nil)
+        }
+    }
+
+    /// Non-modal: the document stays scrollable, and QuickLook opens by itself once `previewURL` is set.
+    @ViewBuilder private var downloadingOverlay: some View {
+        if case .downloading = model.attachments.state {
+            VStack(spacing: 8) {
+                ProgressView()
+                Text("Downloading…")
+                    .font(.footnote)
+                    .foregroundStyle(tokens.secondaryText)
+            }
+            .padding(16)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .accessibilityIdentifier("thread.downloading")
+        }
+    }
+}
+
+/// One-line, non-blocking notice above the document (load failure, attachment failure). Never an alert.
+private struct ThreadNotice: View {
+    let text: String
+    let actionTitle: String?
+    let action: (() -> Void)?
+    let tokens: ThemeTokens
+    let dismiss: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(tokens.secondaryText)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(tokens.secondaryText)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action).font(.footnote.weight(.semibold))
+            }
+            if let dismiss {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .accessibilityLabel("Dismiss")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(tokens.background)
+        .accessibilityIdentifier("thread.notice")
+    }
+}

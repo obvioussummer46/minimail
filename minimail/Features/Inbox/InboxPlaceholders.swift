@@ -1,21 +1,8 @@
 import MailCore
 import SwiftUI
 
-// Each struct carries the FINAL signature of the screen it stands in for. Module 10 deletes `ThreadScreen`,
+// Each struct carries the FINAL signature of the screen it stands in for. Module 10 deleted `ThreadScreen`,
 // 11 deletes `ComposeScreen`, 12 deletes `LabelsScreen`, 13 deletes `SettingsScreen` and then the whole file.
-
-/// Replaced by module 10 (`minimail/Features/Thread/ThreadScreen.swift`).
-struct ThreadScreen: View {
-    let threadId: String
-    @ThemeTokensReader private var themeTokens
-    init(threadId: String) { self.threadId = threadId }
-    var body: some View {
-        Text("Thread \(threadId) (module 10)")
-            .foregroundStyle(themeTokens.secondaryText)
-            .navigationTitle("Thread")
-            .navigationBarTitleDisplayMode(.inline)
-    }
-}
 
 /// Replaced by module 11 (`minimail/Features/Compose/ComposeScreen.swift`).
 struct ComposeScreen: View {
