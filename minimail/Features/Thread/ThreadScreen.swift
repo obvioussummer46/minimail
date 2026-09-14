@@ -16,55 +16,72 @@ struct ThreadScreen: View {
     init(threadId: String) { self.threadId = threadId }
 
     var body: some View {
-        Group {
-            if let model {
-                ThreadContentView(model: model, tokens: themeTokens)
-            } else {
-                themeTokens.background.ignoresSafeArea()
+        chrome
+            .onAppear { appear() }
+            .task { await load() }
+            .task { await observeContentSize() }
+            .onDisappear { model?.detachWeb() }
+            .onChange(of: colorScheme) { _, scheme in model?.systemSchemeChanged(scheme) }
+            .onChange(of: env.theme.choice) { _, _ in model?.systemSchemeChanged(colorScheme) }
+            .onChange(of: model?.shouldDismiss ?? false) { _, gone in if gone { dismiss() } }
+            .sheet(item: composeBinding) { input in ComposeScreen(input: input) }
+            .quickLookPreview(previewBinding)
+            .sensoryFeedback(.impact(weight: .light), trigger: model?.lastActionId ?? 0)
+    }
+
+    /// The document plus the navigation chrome. Split from `body` because one chain of the content, the
+    /// three navigation modifiers, the toolbar and the ten lifecycle modifiers exceeds the type checker's
+    /// budget (it gives up with "unable to type-check this expression in reasonable time").
+    private var chrome: some View {
+        content
+            .navigationTitle(model?.title ?? "")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .bottomBar)
+            .toolbar { toolbar }
+    }
+
+    @ViewBuilder private var content: some View {
+        if let model {
+            ThreadContentView(model: model, tokens: themeTokens)
+        } else {
+            themeTokens.background.ignoresSafeArea()
+        }
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            ThreadActionButton(action: .replyAll, isUnread: isUnread) { model?.replyAll() }
+                .disabled(!canCompose)
+            Spacer()
+            ThreadActionButton(action: .forward, isUnread: isUnread) { model?.forward() }
+                .disabled(!canCompose)
+            Spacer()
+            ThreadActionButton(action: .archive, isUnread: isUnread) { archive() }
+            Spacer()
+            ThreadActionButton(action: .toggleRead, isUnread: isUnread) { toggleRead() }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            if model?.loading == true {
+                ProgressView()
+                    .accessibilityLabel("Loading thread")
+                    .accessibilityIdentifier("thread.loading")
             }
         }
-        .navigationTitle(model?.title ?? "")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .bottomBar)
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                ThreadActionButton(action: .replyAll, isUnread: isUnread) { model?.replyAll() }
-                    .disabled(!canCompose)
-                Spacer()
-                ThreadActionButton(action: .forward, isUnread: isUnread) { model?.forward() }
-                    .disabled(!canCompose)
-                Spacer()
-                ThreadActionButton(action: .archive, isUnread: isUnread) { archive() }
-                Spacer()
-                ThreadActionButton(action: .toggleRead, isUnread: isUnread) { toggleRead() }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                if model?.loading == true {
-                    ProgressView()
-                        .accessibilityLabel("Loading thread")
-                        .accessibilityIdentifier("thread.loading")
-                }
-            }
-        }
-        .onAppear {
-            ensureModel()
-            model?.systemSchemeChanged(colorScheme)
-            model?.attachWeb(openURL: { openURL($0) })
-        }
-        .task {
-            ensureModel()
-            await model?.appeared()
-        }
-        .task {
-            for await _ in ThreadScreen.contentSizeChangeStream() { model?.contentSizeChanged() }
-        }
-        .onDisappear { model?.detachWeb() }
-        .onChange(of: colorScheme) { _, scheme in model?.systemSchemeChanged(scheme) }
-        .onChange(of: env.theme.choice) { _, _ in model?.systemSchemeChanged(colorScheme) }
-        .onChange(of: model?.shouldDismiss ?? false) { _, shouldDismiss in if shouldDismiss { dismiss() } }
-        .sheet(item: composeBinding) { input in ComposeScreen(input: input) }
-        .quickLookPreview(previewBinding)
-        .sensoryFeedback(.impact(weight: .light), trigger: model?.lastActionId ?? 0)
+    }
+
+    private func appear() {
+        ensureModel()
+        model?.systemSchemeChanged(colorScheme)
+        model?.attachWeb(openURL: { openURL($0) })
+    }
+
+    private func load() async {
+        ensureModel()
+        await model?.appeared()
+    }
+
+    private func observeContentSize() async {
+        for await _ in ThreadScreen.contentSizeChangeStream() { model?.contentSizeChanged() }
     }
 
     /// Idempotent: `.onAppear` and `.task` both call it and their order is not guaranteed.
