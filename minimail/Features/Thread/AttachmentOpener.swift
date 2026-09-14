@@ -154,10 +154,11 @@ import os
                 "attachment.size.mismatch \(messageId, privacy: .public) \(record.size) vs \(bytes.count)")
         }
 
-        let manager = fileManager
         do {
+            // A fresh FileManager is made inside the task: the injected one is not Sendable, so capturing it
+            // would make this closure unsendable (spec §4.10 step 11 passes `fm`; Swift 6 does not allow it).
             try await Task.detached(priority: .userInitiated) {
-                try AttachmentOpener.write(bytes, to: url, fileManager: manager)
+                try AttachmentOpener.write(bytes, to: url, fileManager: FileManager())
             }.value
         } catch {
             state = .failed(Self.writeFailedText)
