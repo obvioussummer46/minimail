@@ -74,6 +74,14 @@ nonisolated final class AttachmentOpenerTests: XCTestCase {
     }
 
     private static let fiveBytes = Data([1, 2, 3, 4, 5])
+
+    /// `base64URLString()` lives fileprivate in SyncTestSupport, so the encoding is inlined here.
+    private static func base64URL(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
     private static var attachmentJSON: Data { JSONFixtures.attachment(bytes: fiveBytes) }
     private static let notFound = JSONFixtures.errorEnvelope(code: 404, reason: "notFound", message: "Not Found")
 
@@ -175,7 +183,7 @@ nonisolated final class AttachmentOpenerTests: XCTestCase {
     @MainActor
     func testInlineDataFromReResolve() async throws {
         try seedAttachment(attachmentId: nil)
-        let inline = Self.fiveBytes.base64URLString()
+        let inline = Self.base64URL(Self.fiveBytes)
         StubURLProtocol.routes([
             (
                 "GET", "/gmail/v1/users/me/messages/m1",
@@ -249,7 +257,7 @@ nonisolated final class AttachmentOpenerTests: XCTestCase {
 
     @MainActor
     func testSecondOpenWhileDownloadingIgnored() async throws {
-        try db.write { db in
+        try await db.write { db in
             try BodyRepository.storeBody(
                 db, messageId: "m1",
                 body: SanitizedBody(
