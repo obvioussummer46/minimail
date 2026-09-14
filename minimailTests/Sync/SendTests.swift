@@ -8,7 +8,21 @@ import XCTest
 /// `OutboxTests` covering only the modify path.
 nonisolated final class SendTests: XCTestCase {
 
+    /// Held so `tearDown` can quiesce it: `afterSend()` starts an unstructured `sync.run(.afterSend)` that
+    /// outlives the test, and `StubURLProtocol`'s recorded list is global, so a leaked run shows up as another
+    /// test's traffic.
+    @MainActor private var live: SyncHarness?
+
     override func setUp() { super.setUp(); StubURLProtocol.reset() }
+
+    @MainActor override func tearDown() async throws {
+        if let live {
+            await live.sync.cancelAll()
+            await live.outbox.cancelAll()
+        }
+        live = nil
+        StubURLProtocol.reset()
+    }
 
     // MARK: - Fixtures
 
@@ -61,6 +75,7 @@ nonisolated final class SendTests: XCTestCase {
     private func harness() throws -> SyncHarness {
         let harness = try SyncHarness()
         try harness.seedSyncState(historyId: 1000)
+        live = harness
         return harness
     }
 
@@ -162,14 +177,16 @@ nonisolated final class SendTests: XCTestCase {
 
         await harness.outbox.drain()
 
-        // `afterSend()` kicks a `.afterSend` sync run, so anything after the POST belongs to that, not to the send.
-        XCTAssertEqual(Array(paths().prefix(2)), [Self.att1Path, Self.sendPath])
+        // Only this send's own requests: `afterSend()` kicks a `.afterSend` sync run, and a run leaked from an
+        // earlier test can still be firing into the same global recorder.
+        let mine = paths().filter { $0 == Self.att1Path || $0 == Self.sendPath }
+        XCTAssertEqual(mine, [Self.att1Path, Self.sendPath], "the attachment is fetched before the POST")
         let request = try XCTUnwrap(StubURLProtocol.recorded.first(where: { $0.path == Self.sendPath }))
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: try XCTUnwrap(request.body)) as? [String: Any])
         XCTAssertEqual(json["threadId"] as? String, "a1")
         XCTAssertTrue(try sentMIME().contains("Subject: Fwd:"))
         XCTAssertTrue(try harness.outboxRows().isEmpty)
-        XCTAssertTrue(harness.sleeps.isEmpty)
+        XCTAssertTrue(harness.sleeps.isEmpty, "a successful send never backs off")
         harness.assertInvariants()
     }
 
