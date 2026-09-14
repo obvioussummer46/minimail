@@ -105,6 +105,10 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
         var imagesAllowed: Bool
     }
 
+    /// The model that currently owns `WebBridge.onMessage` / `LinkPolicy`. Weak, so a popped screen cannot
+    /// keep itself alive.
+    @ObservationIgnored private static weak var webOwner: ThreadModel?
+
     @ObservationIgnored private var cancellable: AnyDatabaseCancellable?
     @ObservationIgnored private var renderKey: RenderKey?
     @ObservationIgnored private var knownMessageIds: Set<String> = []
@@ -221,6 +225,200 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
         Log.ui.debug(
             "thread.document.rebuilt \(self.threadId, privacy: .public) rev=\(self.revision) "
                 + "bytes=\(self.document.utf8.count)")
+    }
+
+
+    // MARK: lifecycle
+
+    /// Called once from `ThreadScreen.task`. Marks the thread read when the setting allows it (one local
+    /// transaction, never waiting for bodies), then awaits `ensureThreadLoaded`. Idempotent.
+    func appeared() async {
+        guard !didAppear else { return }
+        didAppear = true
+        if env.settings.settings.markReadOnOpen, (detail?.thread.unreadCount ?? 0) > 0 {
+            didMarkRead = true
+            await env.actions.markRead(threadId: threadId)
+        }
+        await loadThread()
+    }
+
+    private func loadThread() async {
+        guard !loading else { return }
+        loading = true
+        errorText = nil
+        defer { loading = false }
+        do {
+            try await env.sync.ensureThreadLoaded(threadId: threadId)
+        } catch is CancellationError {
+            // The screen is gone.
+        } catch {
+            errorText = ThreadModel.loadErrorText(for: error)
+            Log.ui.error(
+                "thread.load.failed \(self.threadId, privacy: .public) "
+                    + "\(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Notice row "Retry": clears the errors, restarts a cancelled observation and re-runs the load.
+    func retryLoad() async {
+        if observationError != nil {
+            observationError = nil
+            startObservation()
+        }
+        await loadThread()
+    }
+
+    // MARK: web plumbing (08)
+
+    /// Installs this model as the owner of the one shared bridge and link policy.
+    func attachWeb(openURL: @escaping (URL) -> Void) {
+        ThreadModel.webOwner = self
+        openURLAction = openURL
+        env.webBridge.onMessage = { [weak self] message in self?.handle(message) }
+        env.webHost.linkPolicy.onAction = { [weak self] message in self?.handle(message) }
+        env.webHost.linkPolicy.openURL = { [weak self] url in self?.handle(.link(url)) }
+    }
+
+    /// Reverse of `attachWeb`, but only while this model is still the owner: SwiftUI can run the new
+    /// screen's `onAppear` before the old screen's `onDisappear`.
+    func detachWeb() {
+        guard ThreadModel.webOwner === self else { return }
+        ThreadModel.webOwner = nil
+        openURLAction = nil
+        env.webBridge.onMessage = { _ in }
+        env.webHost.linkPolicy.onAction = nil
+        env.webHost.linkPolicy.openURL = { _ in }
+        env.webHost.didLeaveThread()
+    }
+
+    /// Single entry point for every in-document interaction, for both the script bridge and the
+    /// `minimail-action:` link fallback.
+    func handle(_ message: WebMessage) {
+        switch message {
+        case .toggle(let id): toggle(messageId: id)
+        case .loadImages(let id): loadImages(messageId: id)
+        case .attachment(let messageId, let partId):
+            openAttachment(messageId: messageId, partId: partId)
+        case .retry(let id): retry(messageId: id)
+        case .link(let url): openURLAction?(url)
+        }
+    }
+
+    // MARK: in-document effects
+
+    /// Expand/collapse through `evaluateJavaScript` when the loaded document is current; otherwise a rebuild.
+    func toggle(messageId: String) {
+        guard var key = renderKey, let index = key.messages.firstIndex(where: { $0.id == messageId }) else {
+            return
+        }
+        let willExpand = !expanded.contains(messageId)
+        if willExpand {
+            expanded.insert(messageId)
+        } else {
+            expanded.remove(messageId)
+        }
+        // The body was replaced by "Tap to load this message" under the 6 MB document cap.
+        if willExpand, ThreadDocument.strippedIds(messages: key.messages).contains(messageId) {
+            rebuild(force: true)
+            return
+        }
+        guard env.webHost.loadedRevision == revision else {
+            rebuild(force: true)
+            return
+        }
+        key.messages[index].expanded = willExpand
+        renderKey = key  // keep the key in sync so the next observation tick does not reload
+        evaluate(
+            ThreadDocument.toggleScript(messageId: messageId),
+            onFalse: { [weak self] in self?.rebuild(force: true) })
+    }
+
+    /// "Load images" for one message. The scope is this screen only — no per-sender memory in stage 1.
+    func loadImages(messageId: String) {
+        guard imagesAllowedIds.insert(messageId).inserted else { return }
+        lastActionId += 1
+        rebuild(force: false)
+        Log.ui.debug("thread.images.loaded \(self.threadId, privacy: .public)")
+    }
+
+    /// "Retry" inside an unavailable message: the only write this module performs directly.
+    func retry(messageId: String) {
+        let db = env.db
+        let threadId = self.threadId
+        Task { [weak self] in
+            do {
+                try await db.write { db in
+                    try BodyRepository.resetUnavailable(db, messageId: messageId)
+                    try ThreadRepository.recomputeAggregates(
+                        db, threadIds: [threadId],
+                        selfAddresses: try SyncStateRepository.selfAddresses(db))
+                }
+            } catch {
+                Log.ui.error(
+                    "thread.retry.failed \(messageId, privacy: .public) "
+                        + "\(String(describing: error), privacy: .public)")
+            }
+            await self?.loadThread()
+        }
+    }
+
+    func openAttachment(messageId: String, partId: String) {
+        Task { [attachments] in await attachments.open(messageId: messageId, partId: partId) }
+    }
+
+    private func evaluate(_ script: String, onFalse: @escaping () -> Void) {
+        let webView = env.webHost.webView
+        Task { @MainActor in
+            let result = try? await webView.evaluateJavaScript(script)
+            // The section is not in the DOM: the loaded document is out of date.
+            if (result as? Bool) == false { onFalse() }
+        }
+    }
+
+    // MARK: toolbar
+
+    func replyAll() {
+        guard let id = newestMessageId else { return }
+        lastActionId += 1
+        composeInput = .fromMessage(mode: .replyAll, threadId: threadId, messageId: id)
+    }
+
+    func forward() {
+        guard let id = newestMessageId else { return }
+        lastActionId += 1
+        composeInput = .fromMessage(mode: .forward, threadId: threadId, messageId: id)
+    }
+
+    func archive() async {
+        lastActionId += 1
+        await env.actions.archive(threadId: threadId)
+        shouldDismiss = true
+    }
+
+    /// The screen stays open; the toolbar icon flips on the next observation tick.
+    func toggleRead() async {
+        lastActionId += 1
+        if isUnread {
+            await env.actions.markRead(threadId: threadId)
+        } else {
+            await env.actions.markUnread(threadId: threadId)
+        }
+    }
+
+    // MARK: environment changes
+
+    /// `.onAppear` and theme/scheme changes: recompute the tokens and rebuild when anything differs.
+    func systemSchemeChanged(_ scheme: ColorScheme) {
+        let theme = env.theme.resolved(for: scheme)
+        lightTokens = theme.cssTokens(for: .light)
+        darkTokens = theme.cssTokens(for: .dark)
+        forcedScheme = env.theme.forcedDocumentTheme
+        rebuild(force: false)
+    }
+
+    /// Dynamic Type changed: the document text may be identical, so the reload is forced.
+    func contentSizeChanged() {
+        rebuild(force: true)
     }
 
     /// Cancels the observation (the cancellable's own deinit does the same when the model goes away).
