@@ -258,3 +258,35 @@ yet written**; they build on the same harness.
 - Multi-statement `map` closures returning a `#"…\#(…)…"#` raw string literal in a file that imports GRDB
   resolve to GRDB's `SQL` (which has `[SQL].joined(separator:)`), not `String`, silently producing
   `SQL(elements: …)` text. Annotate such closures `-> String` (`JSONFixtures.modifyResponse`).
+
+## 08 html-rendering (app half: T08.5–T08.8)
+
+`minimail/Web/` is built: `WebBridge`, `LinkPolicy`, `CIDSchemeHandler`, `InlineImageStore`,
+`RuleLists`/`WebViewHost`, `MailWebView`, plus the `[08]` `AppEnvironment` wiring (construction, the
+deferred `webHost.prepare()`, the sign-out wipe tail). New app tests: `WebBridgeTests` (5),
+`InlineImageStoreTests` (11), `WebViewHostTests` (9), `AppEnvironmentTests.testWebHostConstructedWithoutWebView`.
+Module 08 is now complete and module 10 is unblocked.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D9 | `load(document:revision:)` sets `linkPolicy.onDidFinish` to end the `documentLoad` signpost | The host sets `linkPolicy.onDidFinish` once, when it creates the instance, and republishes it as `WebViewHost.onDocumentLoaded` | There is one delegate slot. With the spec's form, every caller that wants to know a load finished (10, and §7.3's own `testLoadAndRecycle`) has to overwrite the callback that ends the signpost, and the overwrite races the load it is waiting for. |
+| D10 | `RuleLists` has no store override | `RuleLists.storeOverride` added | §10 O2's documented fallback if `WKContentRuleListStore.default()` is nil in the test host; nil in the app. |
+| D11 | `MailWebView.dismantleUIView` calls `host.didDetach()` | The container holds a weak `webViewHost` and the body runs inside `MainActor.assumeIsolated` | `dismantleUIView` is a static, non-isolated requirement; the assumption is what WebKit and SwiftUI already guarantee (§10 A4). |
+| D12 | `WebViewHost` exposes no way to see whether the instance exists | `webViewIfCreated` is `private(set)` rather than private | `AppEnvironmentTests` asserts launch step 1 creates no `WKWebView`, which spec §8 T08.8 requires. |
+
+### Risk list (first Mac/CI run answers these)
+
+1. **`WKUserContentController.removeAllContentRuleLists()`** (§10 A5). Used as written; if the name is
+   missing, fallback F3 (track the attached list and `remove(_:)`).
+2. **`@MainActor` conformances to `WKScriptMessageHandler`, `WKURLSchemeHandler`, `WKNavigationDelegate`,
+   `WKUIDelegate`** (§10 A4). Written without `@preconcurrency`; add it per conformance if Swift 6 objects.
+3. **The async-only `decidePolicyFor`.** Only the `async` variant is implemented, as the research advises.
+4. **`URL.path` already percent-decodes**, so `WebBridge.parse(actionURL:)` decodes a second time. Harmless
+   for the ids Gmail produces; a part id containing a literal `%` would be mangled.
+5. **`evaluateJavaScript` with `allowsContentJavaScript = false`.** `testLoadAndRecycle` is the check that
+   app-initiated evaluation still runs (architecture §14 #3); a failure there means fallback F1 for 10.
+6. **Timing in `WebViewHostTests`.** The warm-up load is awaited before each test's own load so the
+   expectation cannot be fulfilled by the wrong navigation.
+
