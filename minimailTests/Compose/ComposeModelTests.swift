@@ -416,7 +416,9 @@ nonisolated final class ComposeModelTests: XCTestCase {
         XCTAssertTrue(model.isSending)
 
         await waitUntil { (try? self.env.db.read { try Queries.outboxCounts($0).pending }) == 1 }
-        let row = try XCTUnwrap(await env.db.read { try OutboxRecord.fetchAll($0).first })
+        // `XCTUnwrap` takes an autoclosure, which cannot be async: the read has to be awaited first.
+        let fetched = try await env.db.read { try OutboxRecord.fetchAll($0).first }
+        let row = try XCTUnwrap(fetched)
         XCTAssertEqual(row.kind, .send)
         XCTAssertEqual(row.transmitState, .notSent)
         XCTAssertEqual(row.rfc822MessageId, "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@example.com>")
@@ -470,8 +472,10 @@ nonisolated final class ComposeModelTests: XCTestCase {
 
     @MainActor
     private func seedFailedSend(_ job: SendJob) async throws -> Int64 {
-        try await env.db.write { db -> Int64 in
-            let id = try OutboxRepository.enqueueSend(db, job: job, now: self.seedNow)
+        // `now` is copied out first: the write closure is `@Sendable` and `XCTestCase` is not `Sendable`.
+        let now = seedNow
+        return try await env.db.write { db -> Int64 in
+            let id = try OutboxRepository.enqueueSend(db, job: job, now: now)
             try OutboxRepository.fail(db, opId: id, error: "Invalid recipient")
             return id
         }
