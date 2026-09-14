@@ -28,15 +28,15 @@ struct ThreadScreen: View {
         .toolbar(.visible, for: .bottomBar)
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
-                actionButton(.replyAll) { model?.replyAll() }
-                    .disabled(!(model?.canCompose ?? false))
+                ThreadActionButton(action: .replyAll, isUnread: isUnread) { model?.replyAll() }
+                    .disabled(!canCompose)
                 Spacer()
-                actionButton(.forward) { model?.forward() }
-                    .disabled(!(model?.canCompose ?? false))
+                ThreadActionButton(action: .forward, isUnread: isUnread) { model?.forward() }
+                    .disabled(!canCompose)
                 Spacer()
-                actionButton(.archive) { Task { await model?.archive() } }
+                ThreadActionButton(action: .archive, isUnread: isUnread) { archive() }
                 Spacer()
-                actionButton(.toggleRead) { Task { await model?.toggleRead() } }
+                ThreadActionButton(action: .toggleRead, isUnread: isUnread) { toggleRead() }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 if model?.loading == true {
@@ -72,13 +72,18 @@ struct ThreadScreen: View {
         if model == nil { model = ThreadModel(env: env, threadId: threadId) }
     }
 
-    private func actionButton(_ action: ThreadAction, perform: @escaping () -> Void) -> some View {
-        let isUnread = model?.isUnread ?? false
-        return Button(action: perform) {
-            Image(systemName: action.symbol(isUnread: isUnread))
-        }
-        .accessibilityLabel(action.title(isUnread: isUnread))
-        .accessibilityIdentifier(action.rawValue)
+    private var isUnread: Bool { model?.isUnread ?? false }
+
+    private var canCompose: Bool { model?.canCompose ?? false }
+
+    private func archive() {
+        guard let model else { return }
+        Task { await model.archive() }
+    }
+
+    private func toggleRead() {
+        guard let model else { return }
+        Task { await model.toggleRead() }
     }
 
     /// `@Bindable` cannot be declared for a nested object inside `body`, so both presentations use plain bindings.
@@ -104,6 +109,23 @@ struct ThreadScreen: View {
                 box.tokens.forEach { NotificationCenter.default.removeObserver($0) }
             }
         }
+    }
+}
+
+/// One bottom-bar button. Its own type so the toolbar group stays inside the type checker's budget:
+/// four inline `Button { } label: { }` expressions with optional chaining time out (spec §6.2 builds them
+/// inline; that is not compilable here).
+private struct ThreadActionButton: View {
+    let action: ThreadAction
+    let isUnread: Bool
+    let perform: () -> Void
+
+    var body: some View {
+        Button(action: perform) {
+            Image(systemName: action.symbol(isUnread: isUnread))
+        }
+        .accessibilityLabel(action.title(isUnread: isUnread))
+        .accessibilityIdentifier(action.rawValue)
     }
 }
 
