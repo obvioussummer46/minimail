@@ -21,7 +21,15 @@ nonisolated private enum SyncError: Error, Equatable {
     case cancelled
 }
 
-/// Output of `prepareBody` — computed on the actor, outside any write.
+/// Output of `fetchBody`: everything the sanitiser needs, and nothing that has to stay on the actor.
+nonisolated private struct RawBody: Sendable {
+    var parsed: ParsedMessage
+    var html: String?
+    var text: String?
+    var snippet: String?
+}
+
+/// Output of `sanitize` — computed off the actor, outside any write.
 nonisolated private struct PreparedBody: Sendable {
     var parsed: ParsedMessage
     var body: SanitizedBody
@@ -32,6 +40,9 @@ nonisolated private struct PreparedBody: Sendable {
 /// The sync coordinator. Exactly one instance; owned by `AppEnvironment`.
 actor SyncEngine {
     nonisolated static let labelCountsStaleness: TimeInterval = 300
+    /// Concurrent SwiftSoup parses. Small on purpose: three multi-megabyte documents in flight is already a
+    /// real memory spike on a phone, and the wall-clock win flattens out past the performance cores.
+    nonisolated static let sanitizeWidth = 3
     nonisolated static let foregroundThrottle: TimeInterval = 60
     nonisolated static let labelViewMaxAge: TimeInterval = 86_400
     nonisolated static let maxHistoryRecords = 5_000
@@ -416,9 +427,14 @@ actor SyncEngine {
 
     private func loadThread(_ threadId: String) async throws {
         try await Log.measure(.threadOpen) {
-            self.selfAddresses = self.loadSelfAddresses(try await self.db.read { try SyncStateRepository.all($0) })
-            self.generation = Int((try await self.readState(.syncGeneration)) ?? "0") ?? 0
-            guard let t = try await self.db.read({ try ThreadRecord.fetchOne($0, key: threadId) }) else { return }
+            // One read, not three: this sits directly in front of the request the open is waiting on, and
+            // `syncGeneration` is part of the same state row set `all` already returns.
+            let (state, record) = try await self.db.read { db in
+                (try SyncStateRepository.all(db), try ThreadRecord.fetchOne(db, key: threadId))
+            }
+            self.selfAddresses = self.loadSelfAddresses(state)
+            self.generation = Int(state[.syncGeneration] ?? "0") ?? 0
+            guard let t = record else { return }
             let addresses = self.selfAddresses
 
             if !t.isComplete {
@@ -434,26 +450,22 @@ actor SyncEngine {
                     }
                     return
                 }
-                var built: [PreparedBody] = []
-                for m in thread.messages ?? [] { built.append(try await self.prepareBody(m)) }
-                let prepared = built
-                try self.checkpoint()
-                let now = self.nowMs()
-                let gen = self.generation
-                try await self.db.write { db in
-                    let touched = try MessageRepository.upsertMetadata(
-                        db, parsed: prepared.map(\.parsed), selfAddresses: addresses, generation: gen, now: now)
-                    for p in prepared {
-                        try BodyRepository.storeBody(
-                            db, messageId: p.parsed.id, body: p.body, text: p.text, attachments: p.parsed.attachments,
-                            referenced: p.referenced, sanitizerVersion: Sanitizer.version, now: now)
-                        try MessageRepository.applyServerLabels(
-                            db, messageId: p.parsed.id, labels: Set(p.parsed.labelIds))
-                    }
-                    _ = try MessageRepository.recomputeEffective(db, messageIds: Set(prepared.map(\.parsed.id)))
-                    try ThreadRepository.markComplete(db, threadId: threadId, complete: true)
-                    try ThreadRepository.recomputeAggregates(
-                        db, threadIds: touched.union([threadId]), selfAddresses: addresses)
+                // The messages 10 opens expanded are sanitised and written first, so the screen paints what the
+                // user is looking at without waiting for the quoted history below it. Metadata for the WHOLE
+                // thread rides the first transaction: the section list, the message count and the unread state
+                // are then already final, which leaves the second commit a body-only change 10 can patch into
+                // the live document instead of reloading it.
+                let all = thread.messages ?? []
+                let parsed = all.map { MessageParser.parse($0) }
+                let opening = Set(SyncEngine.openingIndices(all))
+                let rest = all.indices.filter { !opening.contains($0) }
+                try await self.commitBodies(
+                    opening.sorted().map { (all[$0], parsed[$0]) }, metadata: parsed, threadId: threadId,
+                    addresses: addresses, markingComplete: rest.isEmpty)
+                if !rest.isEmpty {
+                    try await self.commitBodies(
+                        rest.map { (all[$0], parsed[$0]) }, metadata: [], threadId: threadId,
+                        addresses: addresses, markingComplete: true)
                 }
             } else {
                 let missing = try await self.db.read {
@@ -465,7 +477,7 @@ actor SyncEngine {
                         let results = try await self.call {
                             try await self.gmail.getMessages(ids: chunk, format: .full)
                         }
-                        var built: [PreparedBody] = []
+                        var raws: [RawBody] = []
                         var goneBuilt = Set<String>()
                         var unavailableBuilt = Set<String>()
                         for (id, r) in results {
@@ -474,7 +486,7 @@ actor SyncEngine {
                                 if m.payload == nil {
                                     unavailableBuilt.insert(id)
                                 } else {
-                                    built.append(try await self.prepareBody(m))
+                                    raws.append(try await self.fetchBody(m, parsed: MessageParser.parse(m)))
                                 }
                             case .failure(.notFound): goneBuilt.insert(id)
                             case .failure(let e):
@@ -482,7 +494,7 @@ actor SyncEngine {
                                     "body \(id, privacy: .public) \(String(describing: e), privacy: .public)")
                             }
                         }
-                        let prepared = built
+                        let prepared = await SyncEngine.sanitizeAll(raws)
                         let gone = goneBuilt
                         let unavailable = unavailableBuilt
                         try self.checkpoint()
@@ -510,8 +522,51 @@ actor SyncEngine {
         }
     }
 
-    private func prepareBody(_ msg: GmailMessage) async throws -> PreparedBody {
-        let parsed = MessageParser.parse(msg)
+    /// Indices of the messages `ThreadModel` renders expanded on open — every unread one plus the newest
+    /// (architecture §8.2) — in ascending order. Never empty for a non-empty thread: the newest always
+    /// qualifies, so the first commit always carries something to paint.
+    nonisolated static func openingIndices(_ messages: [GmailMessage]) -> [Int] {
+        guard messages.count > 1 else { return Array(messages.indices) }
+        let newestId = messages.max { ($0.internalDate?.value ?? 0) < ($1.internalDate?.value ?? 0) }?.id
+        return messages.indices.filter {
+            messages[$0].id == newestId || (messages[$0].labelIds?.contains("UNREAD") ?? false)
+        }
+    }
+
+    /// Prepares one group of messages and writes it in a single transaction, upserting `metadata` alongside
+    /// (the whole thread's, on the first call; empty afterwards, since it is already in). Only the last group
+    /// passes `markingComplete`, so a run that dies half-way leaves `isComplete` false and the next open
+    /// refetches the whole thread rather than trusting a partial one.
+    private func commitBodies(
+        _ group: [(message: GmailMessage, parsed: ParsedMessage)], metadata: [ParsedMessage], threadId: String,
+        addresses: Set<String>, markingComplete: Bool
+    ) async throws {
+        var raws: [RawBody] = []
+        for m in group { raws.append(try await self.fetchBody(m.message, parsed: m.parsed)) }
+        let prepared = await SyncEngine.sanitizeAll(raws)
+        try self.checkpoint()
+        let now = self.nowMs()
+        let gen = self.generation
+        try await self.db.write { db in
+            let touched = try MessageRepository.upsertMetadata(
+                db, parsed: metadata, selfAddresses: addresses, generation: gen, now: now)
+            for p in prepared {
+                try BodyRepository.storeBody(
+                    db, messageId: p.parsed.id, body: p.body, text: p.text, attachments: p.parsed.attachments,
+                    referenced: p.referenced, sanitizerVersion: Sanitizer.version, now: now)
+                try MessageRepository.applyServerLabels(
+                    db, messageId: p.parsed.id, labels: Set(p.parsed.labelIds))
+            }
+            _ = try MessageRepository.recomputeEffective(db, messageIds: Set(prepared.map(\.parsed.id)))
+            if markingComplete { try ThreadRepository.markComplete(db, threadId: threadId, complete: true) }
+            try ThreadRepository.recomputeAggregates(
+                db, threadIds: touched.union([threadId]), selfAddresses: addresses)
+        }
+    }
+
+    /// The actor-side half of preparing a body: parse, and fetch a deferred text part when Gmail delivered the
+    /// only text part by id. Everything here either touches actor state or goes through `call`.
+    private func fetchBody(_ msg: GmailMessage, parsed: ParsedMessage) async throws -> RawBody {
         var html = parsed.body?.html
         var text = parsed.body?.text
         if html == nil && text == nil, let part = parsed.body?.deferredTextParts.first,
@@ -524,20 +579,50 @@ actor SyncEngine {
                 if part.mimeType == "text/html" { html = decoded } else { text = decoded }
             }
         }
+        return RawBody(parsed: parsed, html: html, text: text, snippet: msg.snippet)
+    }
+
+    /// The CPU-bound half: SwiftSoup. Runs off the actor, so a multi-megabyte newsletter cannot block every
+    /// other sync operation while it parses.
+    nonisolated private static func sanitize(_ raw: RawBody) -> PreparedBody {
         let body: SanitizedBody
-        if let h = html, h.utf8.count <= Sanitizer.maxInputBytes,
-            let s = try? Sanitizer.sanitize(html: h, messageId: msg.id)
+        if let h = raw.html, h.utf8.count <= Sanitizer.maxInputBytes,
+            let s = try? Sanitizer.sanitize(html: h, messageId: raw.parsed.id)
         {
             body = s
-        } else if let t = text {
+        } else if let t = raw.text {
             body = Sanitizer.fromPlainText(t)
-        } else if let sn = msg.snippet, !sn.isEmpty {
+        } else if let sn = raw.snippet, !sn.isEmpty {
             body = Sanitizer.fromPlainText(sn)
         } else {
             body = Sanitizer.fromPlainText("This message could not be displayed.")
-            Log.web.error("web.sanitize.failed \(msg.id, privacy: .public)")
+            Log.web.error("web.sanitize.failed \(raw.parsed.id, privacy: .public)")
         }
-        return PreparedBody(parsed: parsed, body: body, text: text, referenced: body.referencedContentIDs)
+        return PreparedBody(parsed: raw.parsed, body: body, text: raw.text, referenced: body.referencedContentIDs)
+    }
+
+    /// Sanitises a group off the actor, at most `sanitizeWidth` at a time. `Sanitizer` holds no mutable state,
+    /// so the cap is about memory and thermals on a phone, not correctness. Input order is preserved.
+    nonisolated private static func sanitizeAll(_ raws: [RawBody]) async -> [PreparedBody] {
+        guard raws.count > 1 else { return raws.map(sanitize) }
+        return await withTaskGroup(of: (Int, PreparedBody).self) { group in
+            var results = [PreparedBody?](repeating: nil, count: raws.count)
+            var next = 0
+            for _ in 0..<min(sanitizeWidth, raws.count) {
+                let index = next
+                next += 1
+                group.addTask { return (index, sanitize(raws[index])) }
+            }
+            while let (index, prepared) = await group.next() {
+                results[index] = prepared
+                if next < raws.count {
+                    let following = next
+                    next += 1
+                    group.addTask { return (following, sanitize(raws[following])) }
+                }
+            }
+            return results.compactMap { $0 }
+        }
     }
 
     // MARK: label counts

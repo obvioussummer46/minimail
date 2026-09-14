@@ -13,6 +13,55 @@ nonisolated final class SyncEngineTests: XCTestCase {
         return r
     }
 
+    // MARK: - Opening split (thread open)
+
+    private func gmailMessage(_ id: String, date: Int64, unread: Bool = false) -> GmailMessage {
+        GmailMessage(
+            id: id, threadId: "t1", labelIds: unread ? ["INBOX", "UNREAD"] : ["INBOX"],
+            internalDate: StringInt64(date))
+    }
+
+    func testOpeningIndicesTakesNewestAndUnread() {
+        let messages = [
+            gmailMessage("m1", date: 1_000),
+            gmailMessage("m2", date: 2_000, unread: true),
+            gmailMessage("m3", date: 3_000),
+            gmailMessage("m4", date: 2_500),
+        ]
+        // m3 is newest, m2 is unread; m1 and m4 are read history and wait for the second commit.
+        XCTAssertEqual(SyncEngine.openingIndices(messages), [1, 2])
+    }
+
+    func testOpeningIndicesNewestIsNotTheLastElement() {
+        let messages = [gmailMessage("m1", date: 9_000), gmailMessage("m2", date: 1_000)]
+        XCTAssertEqual(SyncEngine.openingIndices(messages), [0])
+    }
+
+    func testOpeningIndicesSingleMessageThread() {
+        XCTAssertEqual(SyncEngine.openingIndices([gmailMessage("m1", date: 1_000)]), [0])
+    }
+
+    func testOpeningIndicesEmptyThread() {
+        XCTAssertEqual(SyncEngine.openingIndices([]), [])
+    }
+
+    /// Nothing unread, no dates at all: the first commit must still carry a message rather than come out
+    /// empty, so the screen has something to paint.
+    func testOpeningIndicesIsNeverEmpty() {
+        let undated = [GmailMessage(id: "m1", threadId: "t1"), GmailMessage(id: "m2", threadId: "t1")]
+        XCTAssertFalse(SyncEngine.openingIndices(undated).isEmpty)
+    }
+
+    /// Every unread message is expanded on open, so every unread message is in the first commit.
+    func testOpeningIndicesTakesAllUnread() {
+        let messages = [
+            gmailMessage("m1", date: 1_000, unread: true),
+            gmailMessage("m2", date: 2_000, unread: true),
+            gmailMessage("m3", date: 3_000),
+        ]
+        XCTAssertEqual(SyncEngine.openingIndices(messages), [0, 1, 2])
+    }
+
     @MainActor
     func testPausedWhenNeedsReauth() async throws {
         let h = try SyncHarness()
