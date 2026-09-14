@@ -441,8 +441,8 @@ nonisolated final class SendTests: XCTestCase {
             mime.split(separator: "\r\n", omittingEmptySubsequences: false)
                 .first(where: { $0.hasPrefix("Date: ") }), mime.prefix(300).description)
         let parsed = try XCTUnwrap(HeaderDate.parse(String(dateLine.dropFirst("Date: ".count))))
-        XCTAssertEqual(parsed.timeIntervalSince1970, enqueuedAt.addingTimeInterval(3600).timeIntervalSince1970,
-            accuracy: 1)
+        let expected = enqueuedAt.addingTimeInterval(3600).timeIntervalSince1970
+        XCTAssertEqual(parsed.timeIntervalSince1970, expected, accuracy: 1)
     }
 
     // MARK: - Retry and discard
