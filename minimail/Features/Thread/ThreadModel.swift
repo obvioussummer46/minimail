@@ -227,7 +227,6 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
                 + "bytes=\(self.document.utf8.count)")
     }
 
-
     // MARK: lifecycle
 
     /// Called once from `ThreadScreen.task`. Marks the thread read when the setting allows it (one local
