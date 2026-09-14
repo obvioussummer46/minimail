@@ -28,6 +28,18 @@ nonisolated final class AppEnvironmentTests: XCTestCase {
     }
 
     @MainActor
+    func testWebHostConstructedWithoutWebView() {
+        let env = AppEnvironment(testing: true)
+        XCTAssertFalse(env.webHost.isPrepared)
+        XCTAssertNil(env.webHost.webViewIfCreated, "launch step 1 must not create a WKWebView")
+        XCTAssertTrue(env.webHost.bridge === env.webBridge)
+        XCTAssertTrue(env.webHost.cid.store === env.inlineImages)
+        XCTAssertTrue(
+            AppEnvironment.cidCacheDirectory(testing: true).lastPathComponent.hasPrefix("minimail-cid-"))
+        XCTAssertEqual(AppEnvironment.cidCacheDirectory(testing: false).lastPathComponent, "cid")
+    }
+
+    @MainActor
     func testProcessFlagDetected() {
         XCTAssertTrue(AppEnvironment.isTestingProcess, "the scheme must set MINIMAIL_TESTING=1")
     }

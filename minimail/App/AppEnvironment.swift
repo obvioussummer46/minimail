@@ -39,6 +39,11 @@ import os
     @ObservationIgnored let actions: MailActions
     @ObservationIgnored let identitySource: OutboxIdentitySource
 
+    // [08] Web rendering. Constructed in `init`; no `WKWebView` until `webHost.prepare()` (or a thread opens).
+    @ObservationIgnored let inlineImages: InlineImageStore
+    @ObservationIgnored let webBridge: WebBridge
+    @ObservationIgnored let webHost: WebViewHost
+
     /// Injected by tests (module 14) before constructing an environment: `[StubURLProtocol.self]`. The default blocks
     /// the network in the test host so a launch can never reach Gmail.
     nonisolated(unsafe) static var testURLProtocolClasses: [AnyClass] = [OfflineURLProtocol.self]
@@ -147,19 +152,28 @@ import os
         self.outbox = outbox
         self.sync = sync
         self.actions = MailActions(db: db, outbox: outbox, sync: sync)
-        // [08] WebViewHost — construction only
+        // [08] Inline images + the pooled web view — construction only (no WKWebView yet).
+        let inlineImages = InlineImageStore(
+            gmail: gmail, db: db, cacheDirectory: AppEnvironment.cidCacheDirectory(testing: testing))
+        let webBridge = WebBridge()
+        let webHost = WebViewHost(cid: CIDSchemeHandler(store: inlineImages), bridge: webBridge)
+        self.inlineImages = inlineImages
+        self.webBridge = webBridge
+        self.webHost = webHost
 
         // Hooks owned by 01's objects (06/07/08 add theirs at the marked points).
         auth.hooks.loginHint = { [settings] in settings.settings.lastSignedInEmail }
         auth.hooks.rememberEmail = { [settings] email in settings.update { $0.lastSignedInEmail = email } }
         auth.hooks.fetchProfileEmail = { [gmail] in try await gmail.getProfile().emailAddress }
-        // 08 appends its cache purge + webHost.recycle() to this closure.
-        auth.hooks.wipeAccountData = { [db] in
+        auth.hooks.wipeAccountData = { [db, inlineImages, webHost] in
             await Task.detached {
                 do { try AppDatabase.reset(db) } catch {
                     Log.db.error("reset failed: \(String(describing: error), privacy: .public)")
                 }
             }.value
+            // [08] wipe tail: the inline-image cache and the rendered document.
+            await inlineImages.purge()
+            webHost.recycle()
         }
         // [07] cancel the running sync/drain on sign-out; kick a launch sync after sign-in.
         // No wipe tail: `db` is one stable pool reset in place (spec §10 O1), so `replaceDatabase` is unnecessary.
@@ -189,13 +203,23 @@ import os
         if isTesting { return }
 
         try? await Task.sleep(for: .seconds(1))
-        // [08] await webHost.prepare()
+        await webHost.prepare()
 
         try? await Task.sleep(for: .seconds(1))
         // [07] step d
         BackgroundRefresh.schedule()
         await Maintenance.cleanup(db, now: Date())
         await sync.updateBadge()
+    }
+
+    /// `Caches/cid`, or a fresh temporary directory when testing so no test can see another's bytes.
+    static func cidCacheDirectory(testing: Bool) -> URL {
+        if testing {
+            return URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+                .appendingPathComponent("minimail-cid-\(UUID().uuidString)", isDirectory: true)
+        }
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return caches.appendingPathComponent("cid", isDirectory: true)
     }
 
     /// Ends the cold-start interval the first time the list paints. Later calls do nothing.
