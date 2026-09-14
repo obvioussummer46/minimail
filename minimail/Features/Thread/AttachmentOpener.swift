@@ -150,9 +150,7 @@ import os
             return
         }
         if record.size > 0, bytes.count != record.size {
-            Log.ui.notice(
-                "attachment.size.mismatch \(messageId, privacy: .public) "
-                    + "expected=\(record.size, privacy: .public) got=\(bytes.count, privacy: .public)")
+            Log.ui.notice("attachment.size.mismatch \(messageId, privacy: .public) expected=\(record.size, privacy: .public) got=\(bytes.count, privacy: .public)")
         }
 
         let manager = fileManager

@@ -222,9 +222,7 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
             subject: key.subject, messages: key.messages, light: key.light, dark: key.dark,
             forcedScheme: key.forcedScheme, imagesAllowed: key.imagesAllowed)
         revision &+= 1
-        Log.ui.debug(
-            "thread.document.rebuilt \(self.threadId, privacy: .public) rev=\(self.revision) "
-                + "bytes=\(self.document.utf8.count)")
+        Log.ui.debug("thread.document.rebuilt \(self.threadId, privacy: .public) rev=\(self.revision)")
     }
 
     // MARK: lifecycle
@@ -252,9 +250,7 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
             // The screen is gone.
         } catch {
             errorText = ThreadModel.loadErrorText(for: error)
-            Log.ui.error(
-                "thread.load.failed \(self.threadId, privacy: .public) "
-                    + "\(String(describing: error), privacy: .public)")
+            Log.ui.error("thread.load.failed \(self.threadId, privacy: .public) \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -353,9 +349,7 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
                         selfAddresses: try SyncStateRepository.selfAddresses(db))
                 }
             } catch {
-                Log.ui.error(
-                    "thread.retry.failed \(messageId, privacy: .public) "
-                        + "\(String(describing: error), privacy: .public)")
+                Log.ui.error("thread.retry.failed \(messageId, privacy: .public) \(String(describing: error), privacy: .public)")
             }
             await self?.loadThread()
         }

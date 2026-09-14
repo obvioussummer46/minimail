@@ -316,4 +316,252 @@ nonisolated final class ThreadModelTests: XCTestCase {
         }
         try InvariantChecks.assertAll(db)
     }
+
+    // MARK: - Mark read, load, toolbar
+
+    @MainActor
+    func testMarkReadOnOpen() async throws {
+        try seed([message("m1", offset: 1_000, unread: true)])
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+
+        await model.appeared()
+
+        XCTAssertTrue(model.didMarkRead)
+        await waitUntil { self.model.isUnread == false }
+        let ops = try await env.db.read { try OutboxRepository.activeModifies($0) }
+        XCTAssertEqual(ops.count, 1)
+        try InvariantChecks.assertAll(env.db)
+    }
+
+    @MainActor
+    func testMarkReadOnOpenDisabled() async throws {
+        env.settings.update { $0.markReadOnOpen = false }
+        try seed([message("m1", offset: 1_000, unread: true)])
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+
+        await model.appeared()
+
+        XCTAssertFalse(model.didMarkRead)
+        XCTAssertTrue(model.isUnread)
+        let ops = try await env.db.read { try OutboxRepository.activeModifies($0) }
+        XCTAssertTrue(ops.isEmpty)
+    }
+
+    @MainActor
+    func testMarkReadSkippedWhenAlreadyRead() async throws {
+        try seed([message("m1", offset: 1_000)])
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+
+        await model.appeared()
+
+        XCTAssertFalse(model.didMarkRead)
+        let ops = try await env.db.read { try OutboxRepository.activeModifies($0) }
+        XCTAssertTrue(ops.isEmpty)
+    }
+
+    @MainActor
+    func testAppearedIsIdempotent() async throws {
+        try seed([message("m1", offset: 1_000, unread: true)])
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+
+        await model.appeared()
+        await model.appeared()
+
+        let ops = try await env.db.read { try OutboxRepository.activeModifies($0) }
+        XCTAssertEqual(ops.count, 1)
+    }
+
+    @MainActor
+    func testEnsureThreadLoadedErrorShowsNotice() async throws {
+        try seed([message("m1", offset: 1_000)])
+        try await env.db.write { try ThreadRepository.markComplete($0, threadId: "t1", complete: false) }
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+
+        await model.appeared()
+
+        XCTAssertEqual(model.errorText, "You're offline — showing what's cached.")
+        XCTAssertFalse(model.loading)
+        XCTAssertTrue(model.document.contains("data-id=\"m1\""))
+    }
+
+    @MainActor
+    func testRetryLoadClearsError() async throws {
+        try seed([message("m1", offset: 1_000)])
+        try await env.db.write { try ThreadRepository.markComplete($0, threadId: "t1", complete: false) }
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+        await model.appeared()
+        XCTAssertNotNil(model.errorText)
+
+        StubURLProtocol.reset()
+        StubURLProtocol.routes([
+            (
+                "GET", "/gmail/v1/users/me/threads/t1",
+                [
+                    .json(
+                        200,
+                        JSONFixtures.thread(
+                            id: "t1",
+                            messages: [
+                                JSONFixtures.fullMessage(
+                                    id: "m1", thread: "t1", labels: ["INBOX"], date: seedNow + 1_000,
+                                    html: "<p>Body</p>", text: nil)
+                            ]))
+                ]
+            )
+        ])
+
+        await model.retryLoad()
+
+        XCTAssertNil(model.errorText)
+        await waitUntil(4) { self.model.document.contains("Body") }
+    }
+
+    @MainActor
+    func testArchiveEnqueuesAndDismisses() async throws {
+        try seed([message("m1", offset: 1_000)])
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+
+        await model.archive()
+
+        XCTAssertTrue(model.shouldDismiss)
+        XCTAssertEqual(model.lastActionId, 1)
+        let inInbox = try await env.db.read { try ThreadRecord.fetchOne($0, key: "t1")?.inInbox }
+        XCTAssertEqual(inInbox, false)
+        try InvariantChecks.assertAll(env.db)
+    }
+
+    @MainActor
+    func testToggleReadMarksUnreadThenRead() async throws {
+        try seed([message("m1", offset: 1_000)])
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
+        model = ThreadModel(env: env, threadId: "t1")
+
+        await model.toggleRead()
+        await waitUntil { self.model.isUnread }
+        await model.toggleRead()
+        await waitUntil { !self.model.isUnread }
+
+        XCTAssertEqual(model.lastActionId, 2)
+        XCTAssertFalse(model.shouldDismiss)
+        try InvariantChecks.assertAll(env.db)
+    }
+
+    @MainActor
+    func testComposeInputs() throws {
+        try seed([message("m1", offset: 1_000), message("m2", offset: 2_000)])
+        model = ThreadModel(env: env, threadId: "t1")
+
+        XCTAssertTrue(model.canCompose)
+        model.replyAll()
+        XCTAssertEqual(model.composeInput, .fromMessage(mode: .replyAll, threadId: "t1", messageId: "m2"))
+        model.forward()
+        XCTAssertEqual(model.composeInput, .fromMessage(mode: .forward, threadId: "t1", messageId: "m2"))
+
+        model.stop()
+        env = AppEnvironment(testing: true)
+        model = ThreadModel(env: env, threadId: "gone")
+        XCTAssertFalse(model.canCompose)
+        model.replyAll()
+        model.forward()
+        XCTAssertNil(model.composeInput)
+    }
+
+    @MainActor
+    func testHandleRoutesEveryWebMessage() async throws {
+        try seed([message("m1", offset: 1_000)])
+        try storeBody("m1", html: "<p>Hello</p>")
+        model = ThreadModel(env: env, threadId: "t1")
+        let captured = URLBox()
+        model.attachWeb(openURL: { captured.url = $0 })
+        defer { model.detachWeb() }
+
+        let wasExpanded = model.expanded.contains("m1")
+        model.handle(.toggle(messageId: "m1"))
+        XCTAssertNotEqual(model.expanded.contains("m1"), wasExpanded)
+
+        model.handle(.loadImages(messageId: "m1"))
+        XCTAssertTrue(model.imagesAllowedIds.contains("m1"))
+
+        model.handle(.link(URL(string: "https://x")!))
+        XCTAssertEqual(captured.url?.absoluteString, "https://x")
+
+        model.handle(.retry(messageId: "m1"))
+    }
+
+    @MainActor
+    func testThemeChangeRebuilds() throws {
+        try seed([message("m1", offset: 1_000)])
+        try storeBody("m1", html: "<p>Hello</p>")
+        model = ThreadModel(env: env, threadId: "t1")
+
+        // Both schemes are always emitted, so following the system changes nothing.
+        model.systemSchemeChanged(.dark)
+        XCTAssertEqual(model.revision, 1)
+
+        env.theme.choice = .dark
+        model.systemSchemeChanged(.dark)
+        XCTAssertEqual(model.revision, 2)
+        XCTAssertTrue(model.document.hasPrefix("<!doctype html><html data-theme=\"dark\">"))
+    }
+
+    @MainActor
+    func testContentSizeChangeForcesReload() throws {
+        try seed([message("m1", offset: 1_000)])
+        try storeBody("m1", html: "<p>Hello</p>")
+        model = ThreadModel(env: env, threadId: "t1")
+        let before = model.document
+
+        model.contentSizeChanged()
+
+        XCTAssertEqual(model.revision, 2)
+        XCTAssertEqual(model.document, before)
+    }
+
+    @MainActor
+    func testDetachWebOnlyByOwner() throws {
+        try seed([message("m1", offset: 1_000)])
+        let first = ThreadModel(env: env, threadId: "t1")
+        let second = ThreadModel(env: env, threadId: "t1")
+        defer {
+            first.stop()
+            second.stop()
+        }
+
+        first.attachWeb(openURL: { _ in })
+        second.attachWeb(openURL: { _ in })
+        first.detachWeb()  // no longer the owner: must leave the newer screen's handlers alone
+
+        let wasExpanded = second.expanded.contains("m1")
+        env.webBridge.onMessage(.toggle(messageId: "m1"))
+        XCTAssertNotEqual(second.expanded.contains("m1"), wasExpanded)
+
+        second.detachWeb()
+        let afterDetach = second.expanded.contains("m1")
+        env.webBridge.onMessage(.toggle(messageId: "m1"))
+        XCTAssertEqual(second.expanded.contains("m1"), afterDetach)
+    }
+
+    @MainActor
+    func testStopCancelsObservation() async throws {
+        try seed([message("m1", offset: 1_000)])
+        model = ThreadModel(env: env, threadId: "t1")
+
+        model.stop()
+        try storeBody("m1", html: "<p>Hello</p>")
+        try await Task.sleep(for: .milliseconds(300))
+
+        XCTAssertEqual(model.revision, 1)
+    }
+}
+
+/// Captures the URL handed to `openURL` from a closure the model owns.
+@MainActor private final class URLBox {
+    var url: URL?
 }
