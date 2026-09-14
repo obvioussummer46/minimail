@@ -335,3 +335,35 @@ gone. New app tests: `ComposeModelTests` (27), `ComposeViewsTests` (12). Whole s
    the provisional quote text back to `original.snippet`; the fixture's snippet has to be empty for that.
    `testSendEnqueuesOneOutboxRow` likewise expects the row to still read `transmitState == .notSent`, but
    `MailActions.send` awaits `outbox.drain()`, which sets `.maybeSent` before the POST.
+
+## Backfill: SendTests (07 T07.9) and the Gmail signature bridge
+
+`Outbox.performSend` shipped in module 07 with only the modify path under test. `minimailTests/Sync/SendTests.swift`
+(18 tests) is the first execution of the send branches: the `rfc822msgid` duplicate check, the `maybeSent`
+window, the attachment budget, the `attachmentId` re-resolve on 404, reply vs forward quoting, the signature,
+and the `Date` stamp. 11 passed on the first run.
+
+### Defect the backfill found
+
+`Outbox.drain` set `sawOffline` only from the modify path, so a queued **send** that failed offline left
+`status.isOffline` false — the inbox banner stayed quiet and the user saw a stuck outbox with no explanation.
+`performSend` now returns `.stop(offline:)` and `drain` raises the flag. (Spec §7.6 asserted this behaviour;
+the implementation never had it.)
+
+### Test-harness notes
+
+- `afterSend()` starts an unstructured `sync.run(.afterSend)` that outlives the test, and `StubURLProtocol`'s
+  recorded list is process-global, so `SendTests.tearDown` cancels the harness's engine and outbox. Without it a
+  leaked run's `/profile` calls surface in the next test's assertions.
+- `SyncHarness.setSettings` feeds the **engine's** snapshot closure. The signature reaches the MIME builder
+  through `OutboxIdentitySource`, which the harness gives a separate `SettingsStore`; a signature test has to
+  write to `harness.identity.settings` or it passes vacuously.
+
+### Signature bridge
+
+`SyncEngine.fullSync` already stored the preferred send-as signature in `syncState.sendAsSignature`, and
+`OutboxIdentitySource.current()` already fed `Settings.signatureHTML` to `OutgoingBodies` — but nothing moved
+the one into the other, so outgoing mail carried no signature and module 13 owns the only editor.
+`SignatureImport.adoptGmailSignatureIfUnset` (called from `startDeferredWork` after the launch sync) sanitizes
+it through 08's `SignatureSanitizer` and adopts it once, guarded by a defaults flag so a later sync cannot undo
+an owner who clears it. Module 13's `SignatureEditorModel.importFromGmail` reads the same key and supersedes it.
