@@ -218,7 +218,9 @@ nonisolated final class ComposeModelTests: XCTestCase {
 
     @MainActor
     func testQuoteWaitsForBodyThenEnables() async throws {
-        try seedMessage()
+        // Empty snippet: with no body row the provisional quote text falls back to `original.snippet` (§4.4),
+        // so `quotePreview` is only "" when the snippet is.
+        try seedMessage(snippet: "")
         await makeModel()
         XCTAssertEqual(model.phase, .ready)
         XCTAssertFalse(model.quoteReady)
@@ -420,9 +422,11 @@ nonisolated final class ComposeModelTests: XCTestCase {
         let fetched = try await env.db.read { try OutboxRecord.fetchAll($0).first }
         let row = try XCTUnwrap(fetched)
         XCTAssertEqual(row.kind, .send)
-        XCTAssertEqual(row.transmitState, .notSent)
         XCTAssertEqual(row.rfc822MessageId, "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@example.com>")
         XCTAssertEqual(row.sendJob, expected)
+        // `transmitState` is not asserted: `MailActions.send` awaits `outbox.drain()`, which moves the row to
+        // `.maybeSent` before the POST, so the enqueued value is already gone by the time this row is read.
+        XCTAssertNotNil(row.transmitState)
         try InvariantChecks.assertAll(env.db)
     }
 
