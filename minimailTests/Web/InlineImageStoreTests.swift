@@ -142,7 +142,7 @@ nonisolated final class InlineImageStoreTests: XCTestCase {
         XCTAssertTrue(query.contains("format=full"))
         XCTAssertTrue(query.contains("fields=id,payload") || query.contains("fields=id%2Cpayload"))
 
-        let stored = try db.read { try BodyRepository.attachment($0, messageId: "m1", partId: "1") }
+        let stored = try await db.read { try BodyRepository.attachment($0, messageId: "m1", partId: "1") }
         XCTAssertEqual(stored?.attachmentId, "att2")
         try InvariantChecks.assertAll(db)
     }

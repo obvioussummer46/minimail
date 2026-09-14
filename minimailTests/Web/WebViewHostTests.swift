@@ -197,6 +197,7 @@ nonisolated final class WebViewHostTests: XCTestCase {
         await fulfillment(of: [finished], timeout: 5)
     }
 
+    @MainActor
     private static func document(subject: String) -> String {
         ThreadDocument.render(
             subject: subject,
