@@ -13,9 +13,13 @@ nonisolated final class ThreadModelTests: XCTestCase {
 
     @MainActor override func setUp() async throws {
         StubURLProtocol.reset()
-        // The test host has no keychain item, so without this every Gmail request would fail with
-        // `.unauthorized` before reaching `StubURLProtocol`.
+        // Two defaults have to be replaced for a request to reach the stub: the test host has no keychain item,
+        // so the real provider fails every request with `.unauthorized`, and `testURLProtocolClasses` defaults to
+        // `OfflineURLProtocol`, which fails every request with `.notConnectedToInternet`.
         AppEnvironment.testTokenProvider = FixedTokenProvider()
+        AppEnvironment.testURLProtocolClasses = [StubURLProtocol.self]
+        // Default: offline, matching what `OfflineURLProtocol` used to do for tests that script no routes.
+        StubURLProtocol.install { _ in .error(.notConnectedToInternet) }
         env = AppEnvironment(testing: true)
     }
 
@@ -24,6 +28,7 @@ nonisolated final class ThreadModelTests: XCTestCase {
         model = nil
         env = nil
         AppEnvironment.testTokenProvider = nil
+        AppEnvironment.testURLProtocolClasses = [OfflineURLProtocol.self]
         StubURLProtocol.reset()
     }
 
