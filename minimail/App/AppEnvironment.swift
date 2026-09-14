@@ -222,6 +222,16 @@ import os
         return caches.appendingPathComponent("cid", isDirectory: true)
     }
 
+    /// `<Caches>/attachments` (purged by `Maintenance.purgeFiles`); when testing, a fresh temporary directory.
+    static func attachmentsCacheDirectory(testing: Bool) -> URL {
+        if testing {
+            return URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+                .appendingPathComponent("minimail-att-\(UUID().uuidString)", isDirectory: true)
+        }
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return caches.appendingPathComponent("attachments", isDirectory: true)
+    }
+
     /// Ends the cold-start interval the first time the list paints. Later calls do nothing.
     func markFirstListPaint() {
         if let state = coldStart {
