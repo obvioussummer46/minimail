@@ -182,12 +182,16 @@ private struct ComposeAttachmentsSection: View {
     let tokens: ThemeTokens
 
     var body: some View {
-        Section("Attachments") {
+        // `Section(_ titleKey:content:footer:)` does not exist — a titled section with a footer has to spell the
+        // header out (spec §6.4 writes the non-existent form).
+        Section {
             ForEach(model.attachments) { item in
                 ComposeAttachmentRow(item: item, tokens: tokens) { included in
                     model.setAttachment(partId: item.id, included: included)
                 }
             }
+        } header: {
+            Text("Attachments")
         } footer: {
             footer
         }
@@ -216,7 +220,7 @@ private struct ComposeAttachmentRow: View {
     }
 
     var body: some View {
-        Toggle(isOn: Binding(get: { item.included }, set: setIncluded)) {
+        Toggle(isOn: Binding(get: { item.included }, set: { setIncluded($0) })) {
             HStack(spacing: 8) {
                 Image(systemName: item.isInline ? "photo" : "paperclip")
                     .foregroundStyle(tokens.secondaryText)
