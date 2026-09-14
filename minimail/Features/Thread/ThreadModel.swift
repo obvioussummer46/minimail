@@ -250,7 +250,8 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
             // The screen is gone.
         } catch {
             errorText = ThreadModel.loadErrorText(for: error)
-            Log.ui.error("thread.load.failed \(self.threadId, privacy: .public) \(String(describing: error), privacy: .public)")
+            let reason = String(describing: error)
+            Log.ui.error("thread.load.failed \(self.threadId, privacy: .public) \(reason, privacy: .public)")
         }
     }
 
@@ -349,7 +350,8 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
                         selfAddresses: try SyncStateRepository.selfAddresses(db))
                 }
             } catch {
-                Log.ui.error("thread.retry.failed \(messageId, privacy: .public) \(String(describing: error), privacy: .public)")
+                let reason = String(describing: error)
+                Log.ui.error("thread.retry.failed \(messageId, privacy: .public) \(reason, privacy: .public)")
             }
             await self?.loadThread()
         }
