@@ -1,4 +1,5 @@
 import MailCore
+import QuickLook
 import SwiftUI
 import UIKit
 import WebKit
@@ -26,7 +27,7 @@ struct ThreadScreen: View {
             .onChange(of: model?.shouldDismiss ?? false) { _, gone in if gone { dismiss() } }
             .sheet(item: composeBinding) { input in ComposeScreen(input: input) }
             .quickLookPreview(previewBinding)
-            .sensoryFeedback(.impact(weight: .light), trigger: model?.lastActionId ?? 0)
+            .sensoryFeedback(SensoryFeedback.impact(weight: .light), trigger: model?.lastActionId ?? 0)
     }
 
     /// The document plus the navigation chrome. Split from `body` because one chain of the content, the
