@@ -174,6 +174,8 @@ import os
             // [08] wipe tail: the inline-image cache and the rendered document.
             await inlineImages.purge()
             webHost.recycle()
+            // [10] wipe tail: downloaded attachments.
+            try? AttachmentOpener.purge(directory: AppEnvironment.attachmentsCacheDirectory(testing: testing))
         }
         // [07] cancel the running sync/drain on sign-out; kick a launch sync after sign-in.
         // No wipe tail: `db` is one stable pool reset in place (spec §10 O1), so `replaceDatabase` is unnecessary.
