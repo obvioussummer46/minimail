@@ -290,3 +290,26 @@ Module 08 is now complete and module 10 is unblocked.
 6. **Timing in `WebViewHostTests`.** The warm-up load is awaited before each test's own load so the
    expectation cannot be fulfilled by the wrong navigation.
 
+
+## 10 thread-view (T10.1–T10.7)
+
+`minimail/Features/Thread/` is built: `ThreadModel`, `AttachmentOpener`, `ThreadScreen`. New app tests:
+`ThreadModelTests` (28), `ThreadViewsTests` (8), `AttachmentOpenerTests`. Whole suite green at 335 tests.
+T10.8 (device pass) is still open — it cannot be scripted.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D13 | §4.10 step 11 passes the injected `FileManager` into the detached write | The task constructs its own `FileManager()` | `FileManager` is not `Sendable`; capturing the injected one is a `sending`-parameter data race under Swift 6. |
+| D14 | §6.2 builds the four bottom-bar buttons inline | Each is a `ThreadActionButton` view, and `body` is split into `chrome` / `content` / a `@ToolbarContentBuilder` | The inline forms exceed the type checker's budget twice over ("unable to type-check this expression in reasonable time") — first the toolbar group, then the whole `body` chain. |
+| D15 | §4.6 step 4 forces a reload whenever `webHost.loadedRevision != revision` | Only when a `WKWebView` actually exists | With no instance there is no loaded document to reload, and bumping `revision` would contradict §10 test `testToggleKeepsRevision`. The document is still rebuilt so the first load picks up the new state. |
+| D16 | `apply(nil)` dismisses and returns | It rebuilds first | Otherwise `document` stays empty for a thread that is already gone, and the web view would load an empty string (§10 `testMissingThreadDismissesImmediately`). |
+| D17 | Tests construct `AppEnvironment(testing: true)` and script `StubURLProtocol` | `AppEnvironment.testTokenProvider` added next to `testURLProtocolClasses` | The test host has no keychain item, so the real provider fails every request with `.unauthorized` before it is sent. `testURLProtocolClasses` also has to be swapped off its `OfflineURLProtocol` default or no scripted route is reachable. |
+
+### Spec errors found by CI (running total: 6)
+
+5. §10 `testLoadImagesIsPerMessage` asserts `document.contains("src=\"https://x/m2.png\"")` is false, but
+   `data-src="…"` ends in `src="…"`, so the assertion can never hold. Both halves are now matched whole.
+6. §7.3 `InlineImageStoreTests` seeds a body without recomputing the thread aggregates, so
+   `thread.bodiesMissing` stays 1 and invariant 6 trips in `testReresolveOn404`.
