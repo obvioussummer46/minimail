@@ -49,8 +49,32 @@ struct SettingsScreen: View {
                     }
                     .accessibilityIdentifier("placeholder.signout")
                 }
+                // [13, partial] The signature is the one settings row that is real: the editor below it ships,
+                // the rest of module 13 (theme picker, compose style, badge, Advanced) is still the placeholder.
+                Section {
+                    NavigationLink {
+                        SignatureEditorScreen()
+                    } label: {
+                        LabeledContent("Signature", value: SignatureSummary.line(env.settings.settings.signatureHTML))
+                    }
+                    .accessibilityIdentifier("settings.signature")
+                    Toggle("Use Signature", isOn: signatureEnabled)
+                        .accessibilityIdentifier("settings.signatureEnabled")
+                } header: {
+                    Text("Signature")
+                } footer: {
+                    Text(SettingsStrings.signatureFooter)
+                }
             }
             .navigationTitle("Settings")
         }
+    }
+
+    /// Writes through `SettingsStore` on every toggle; 13's `SettingsStore.binding(_:)` replaces this.
+    private var signatureEnabled: Binding<Bool> {
+        Binding(
+            get: { env.settings.settings.signatureEnabled },
+            set: { value in env.settings.update { $0.signatureEnabled = value } }
+        )
     }
 }

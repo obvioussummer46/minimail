@@ -367,3 +367,40 @@ the one into the other, so outgoing mail carried no signature and module 13 owns
 `SignatureImport.adoptGmailSignatureIfUnset` (called from `startDeferredWork` after the launch sync) sanitizes
 it through 08's `SignatureSanitizer` and adopts it once, guarded by a defaults flag so a later sync cannot undo
 an owner who clears it. Module 13's `SignatureEditorModel.importFromGmail` reads the same key and supersedes it.
+
+## Signature editor (13, partial): the owner can now edit the HTML signature
+
+The signature was end-to-end except for the editor: `SyncEngine.fullSync` stores the Gmail send-as signature,
+`SignatureImport` adopts it once, `OutboxIdentitySource` feeds it to `OutgoingBodies` — but nothing let the owner
+change it. This ships the signature slice of module 13 and leaves the rest of that module (theme picker, compose
+style, badge, Advanced, sign-out) on the placeholder screen.
+
+- `minimail/Features/Settings/SignatureEditorModel.swift` — `SignatureEditorModel` (load / debounced preview /
+  import / save, §4.9–§4.11), `SignaturePreviewDocument`, `SignatureSummary`, `SignatureImportState`,
+  `SignatureSanitizeOutcome`, and `SettingsStrings` with the signature strings only (module 13's
+  `SettingsModel.swift` adds the rest).
+- `minimail/Features/Settings/SignatureEditorScreen.swift` — the `Form`, the footers, and `SignaturePreviewView`
+  over a throwaway `WKWebView` (`WebViewHost.makeThrowawayWebView`), so the pooled instance behind the sheet keeps
+  its document.
+- `minimail/Features/Inbox/InboxPlaceholders.swift` — the placeholder `SettingsScreen` gained the real Signature
+  row (summary line + editor push) and the "Use Signature" toggle. Module 13 deletes the file as planned.
+- Tests: `minimailTests/Settings/SignatureEditorModelTests.swift` (§7.2) and
+  `minimailTests/Settings/SignatureDocumentTests.swift` (preview document, summary line, two hosting smoke tests).
+
+### Deviations from spec 13
+
+1. §4.9 hands a `Result<String, any Error>` back from the detached sanitize. `any Error` is not `Sendable`, so a
+   `Task.detached` returning it does not compile under `SWIFT_STRICT_CONCURRENCY: complete`. The detached task
+   returns `SignatureSanitizeOutcome` instead and maps the error to its sentence on the far side; only strings
+   cross the isolation boundary.
+2. §4.10 step 3 re-sanitizes only when `sanitized == nil && error == nil`. That saves the *previous* text when the
+   owner edits after a successful preview and taps Save inside the debounce window. The model tracks
+   `sanitizedSource` (the exact `html` that produced the current `sanitized`/`error`) and re-sanitizes whenever it
+   differs — `testSaveAfterEditReSanitizes` covers it.
+3. §6.10 uses `Section("HTML") { … } footer: { … }`, which is not a real `Section` initializer (the same spec
+   error as #7 above). Both the editor and the settings row use `Section(content:header:footer:)`.
+
+### Spec errors found by CI (running total: 10)
+
+9. §4.9's `Result<String, any Error>` across a `Task.detached` boundary (deviation 1).
+10. §6.10's `Section(_:content:footer:)` (deviation 3) — the second occurrence of spec error 7.
