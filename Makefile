@@ -7,6 +7,9 @@ SIM_DEST ?= platform=iOS Simulator,name=iPhone 17
 # Ad-hoc signing (no team needed) so simulator keychain access works in tests; NOSIGN name kept for call sites.
 NOSIGN  := CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=-
 XCB     := xcbeautify --renderer $(if $(GITHUB_ACTIONS),github-actions,terminal)
+# A hung test (WebKit never calling back, an expectation that can never be met) must fail the test, not eat
+# the whole job: 120 s per test, enforced by XCTest.
+TIMEOUTS := -test-timeouts-enabled YES -default-test-execution-time-allowance 120
 
 .PHONY: core-test core-test-nohtml gen build test-app test-one lint format clean
 
@@ -23,13 +26,13 @@ test-app: gen
 	rm -rf $(RESULTS)/unit.xcresult
 	set -o pipefail && xcodebuild test -project $(PROJECT) -scheme $(SCHEME) -destination '$(SIM_DEST)' \
 	  -derivedDataPath $(DD) -clonedSourcePackagesDirPath $(SPM) -resultBundlePath $(RESULTS)/unit.xcresult \
-	  -only-testing:minimailTests $(NOSIGN) | $(XCB)
+	  -only-testing:minimailTests $(TIMEOUTS) $(NOSIGN) | $(XCB)
 	xcrun xcresulttool get test-results summary --path $(RESULTS)/unit.xcresult --compact
 test-one: gen                   # make test-one T=minimailTests/OutboxTests/testInverseOpsCancel
 	rm -rf $(RESULTS)/one.xcresult
 	set -o pipefail && xcodebuild test -project $(PROJECT) -scheme $(SCHEME) -destination '$(SIM_DEST)' \
 	  -derivedDataPath $(DD) -clonedSourcePackagesDirPath $(SPM) -resultBundlePath $(RESULTS)/one.xcresult \
-	  -only-testing:$(T) $(NOSIGN) | $(XCB)
+	  -only-testing:$(T) $(TIMEOUTS) $(NOSIGN) | $(XCB)
 lint:
 	swift format lint --strict --recursive minimail minimailTests Packages/MailCore/Sources Packages/MailCore/Tests
 	! grep -rE "^import (UIKit|SwiftUI|GRDB|AppAuth|WebKit|Security|CoreFoundation)" Packages/MailCore/Sources
