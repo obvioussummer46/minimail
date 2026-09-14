@@ -169,6 +169,9 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
         guard let detail else {
             self.detail = nil
             shouldDismiss = true
+            // Still render: `init` must leave a non-empty document behind even for a thread that is already
+            // gone, so the web view never loads an empty string (spec §10 testMissingThreadDismissesImmediately).
+            rebuild(force: false)
             Log.ui.debug("thread.gone \(self.threadId, privacy: .public)")
             return
         }
@@ -214,13 +217,14 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
 
     /// Rebuilds only when the projection actually changed, so an unrelated observation tick never reloads the
     /// document (architecture §8.4). `force` is for Dynamic Type and for expanding a stripped section.
-    private func rebuild(force: Bool) {
+    private func rebuild(force: Bool, bumpsRevision: Bool = true) {
         let key = makeRenderKey()
         guard force || key != renderKey else { return }
         renderKey = key
         document = ThreadDocument.render(
             subject: key.subject, messages: key.messages, light: key.light, dark: key.dark,
             forcedScheme: key.forcedScheme, imagesAllowed: key.imagesAllowed)
+        guard bumpsRevision else { return }
         revision &+= 1
         Log.ui.debug("thread.document.rebuilt \(self.threadId, privacy: .public) rev=\(self.revision)")
     }
@@ -319,7 +323,9 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
             return
         }
         guard env.webHost.loadedRevision == revision else {
-            rebuild(force: true)
+            // No web view has ever been created, so there is no loaded document to reload: rebuild in place so
+            // the first load picks up the new state, but leave `revision` alone (spec §10 testToggleKeepsRevision).
+            rebuild(force: true, bumpsRevision: env.webHost.webViewIfCreated != nil)
             return
         }
         key.messages[index].expanded = willExpand

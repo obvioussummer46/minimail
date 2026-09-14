@@ -13,6 +13,9 @@ nonisolated final class ThreadModelTests: XCTestCase {
 
     @MainActor override func setUp() async throws {
         StubURLProtocol.reset()
+        // The test host has no keychain item, so without this every Gmail request would fail with
+        // `.unauthorized` before reaching `StubURLProtocol`.
+        AppEnvironment.testTokenProvider = FixedTokenProvider()
         env = AppEnvironment(testing: true)
     }
 
@@ -20,6 +23,7 @@ nonisolated final class ThreadModelTests: XCTestCase {
         model?.stop()
         model = nil
         env = nil
+        AppEnvironment.testTokenProvider = nil
         StubURLProtocol.reset()
     }
 
@@ -280,8 +284,11 @@ nonisolated final class ThreadModelTests: XCTestCase {
 
         model.loadImages(messageId: "m1")
 
-        XCTAssertTrue(model.document.contains("src=\"https://x/m1.png\""))
-        XCTAssertFalse(model.document.contains("src=\"https://x/m2.png\""))
+        // `data-src="…"` ends in `src="…"`, so both halves have to be matched whole.
+        let placeholder = ThreadDocument.placeholderGIF
+        XCTAssertTrue(model.document.contains("<img class=\"mm-remote\" src=\"https://x/m1.png\""))
+        XCTAssertFalse(model.document.contains("data-src=\"https://x/m1.png\""))
+        XCTAssertTrue(model.document.contains("data-src=\"https://x/m2.png\" src=\"\(placeholder)\""))
         XCTAssertTrue(model.document.contains("Load images"))
     }
 

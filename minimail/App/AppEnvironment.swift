@@ -48,6 +48,11 @@ import os
     /// the network in the test host so a launch can never reach Gmail.
     nonisolated(unsafe) static var testURLProtocolClasses: [AnyClass] = [OfflineURLProtocol.self]
 
+    /// Injected by tests that need the Gmail client to reach `StubURLProtocol`: the real `AppAuthTokenProvider`
+    /// has no keychain item in the test host, so every request would fail with `.unauthorized` before it is sent.
+    /// Only consulted when `testing` is true.
+    nonisolated(unsafe) static var testTokenProvider: (any TokenProvider)?
+
     /// `OAuthConfig.testingKeychainAccount` when `isTesting`, else `OAuthConfig.keychainAccount` — so the test host
     /// never sees a developer's real item.
     var keychainAccount: String { tokens.keychainAccount }
@@ -128,8 +133,10 @@ import os
             requestLog = nil
         #endif
         let limiter = RequestLimiter(max: 2)
+        var clientTokens: any TokenProvider = tokens
+        if testing, let injected = AppEnvironment.testTokenProvider { clientTokens = injected }
         let gmail = GmailClient(
-            tokens: tokens,
+            tokens: clientTokens,
             session: .minimail(protocolClasses: testing ? AppEnvironment.testURLProtocolClasses : nil),
             limiter: limiter,
             log: requestLog

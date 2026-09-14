@@ -36,6 +36,9 @@ nonisolated final class InlineImageStoreTests: XCTestCase {
                         contentId: "ii_logo", attachmentId: "att1", inlineData: nil, charset: nil)
                 ],
                 referenced: ["ii_logo"], sanitizerVersion: 1, now: 0)
+            // storeBody clears bodiesMissing on the message; the thread row has to follow or invariant 6 trips.
+            try ThreadRepository.recomputeAggregates(
+                db, threadIds: ["m1"], selfAddresses: try SyncStateRepository.selfAddresses(db))
         }
         gmail = GmailClient(
             tokens: FixedTokenProvider(),
