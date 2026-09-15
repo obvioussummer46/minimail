@@ -152,6 +152,23 @@ nonisolated final class ThreadModelTests: XCTestCase {
         XCTAssertTrue(newest.contains("mm-expanded"))
     }
 
+    /// The newest message renders at the top of the thread; the underlying `detail.messages` stays ascending.
+    @MainActor
+    func testNewestMessageRendersFirst() throws {
+        try seed([message("m1", offset: 1_000), message("m2", offset: 2_000), message("m3", offset: 3_000)])
+        model = ThreadModel(env: env, threadId: "t1")
+
+        let doc = model.document
+        let posNewest = try XCTUnwrap(doc.range(of: "data-id=\"m3\"")).lowerBound
+        let posMiddle = try XCTUnwrap(doc.range(of: "data-id=\"m2\"")).lowerBound
+        let posOldest = try XCTUnwrap(doc.range(of: "data-id=\"m1\"")).lowerBound
+        XCTAssertTrue(posNewest < posMiddle, "newest must be above the middle message")
+        XCTAssertTrue(posMiddle < posOldest, "middle must be above the oldest message")
+        // Display order is reversed for rendering only; the model's message list stays ascending.
+        XCTAssertEqual(model.detail?.messages.map(\.id), ["m1", "m2", "m3"])
+        XCTAssertEqual(model.newestMessageId, "m3")
+    }
+
     @MainActor
     func testTitleStripsPrefixes() throws {
         try seed([message("m1", offset: 1_000, subject: "Re: Fwd: Angebot")])

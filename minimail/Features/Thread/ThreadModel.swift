@@ -232,8 +232,10 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
         renderKey = key
         let built = ThreadDocument.sections(messages: key.messages)
         sections = Dictionary(built.map { ($0.id, $0.html) }, uniquingKeysWith: { _, last in last })
+        // Display newest first. `built` is internalDate-ascending — which keeps `strippedIds` stripping the
+        // oldest messages under the byte budget — so only the emitted section order is reversed, not the data.
         document = ThreadDocument.render(
-            subject: key.subject, sections: built.map(\.html), light: key.light, dark: key.dark,
+            subject: key.subject, sections: built.reversed().map(\.html), light: key.light, dark: key.dark,
             forcedScheme: key.forcedScheme, imagesAllowed: key.imagesAllowed)
         guard bumpsRevision else { return }
         if !force, let previousKey, ThreadModel.isPatchable(from: previousKey, to: key),
