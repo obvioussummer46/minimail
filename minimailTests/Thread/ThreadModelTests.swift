@@ -43,6 +43,17 @@ nonisolated final class ThreadModelTests: XCTestCase {
         }
     }
 
+    @MainActor func waitUntilAsync(_ timeout: TimeInterval = 2, _ cond: @escaping () async -> Bool) async {
+        let start = Date()
+        while await !cond() {
+            if Date().timeIntervalSince(start) > timeout {
+                XCTFail("waitUntil timed out")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
     // MARK: - Seeding helpers
 
     @MainActor
@@ -179,10 +190,13 @@ nonisolated final class ThreadModelTests: XCTestCase {
         XCTAssertNil(model.detail)
     }
 
+    /// No web view has ever been created here, so there is no loaded document to patch and the arrival falls
+    /// back to a reload. The patched path is `testBodyArrivalPatchesLoadedDocument`.
     @MainActor
     func testBodyArrivalRebuildsAndBumpsRevision() async throws {
         try seed([message("m1", offset: 1_000)])
         model = ThreadModel(env: env, threadId: "t1")
+        XCTAssertNil(env.webHost.webViewIfCreated)
         XCTAssertEqual(model.revision, 1)
         XCTAssertTrue(model.document.contains("Loading…"))
 
@@ -191,6 +205,39 @@ nonisolated final class ThreadModelTests: XCTestCase {
         await waitUntil { self.model.revision == 2 }
         XCTAssertTrue(model.document.contains("Hello"))
         XCTAssertFalse(model.document.contains("Loading…"))
+    }
+
+    /// The production path: the document is on screen when the body lands, so the section is swapped in place
+    /// and `revision` does not move — no `loadHTMLString`, no lost scroll position.
+    @MainActor
+    func testBodyArrivalPatchesLoadedDocument() async throws {
+        try seed([message("m1", offset: 1_000)])
+        model = ThreadModel(env: env, threadId: "t1")
+        try await loadIntoWebView()
+        XCTAssertEqual(model.revision, 1)
+
+        try storeBody("m1", html: "<p>Hello</p>")
+
+        await waitUntil { self.model.document.contains("Hello") }
+        XCTAssertEqual(model.revision, 1, "a body landing must patch, not reload")
+        await waitUntilAsync { await self.webViewHTML().contains("Hello") }
+        let html = await webViewHTML()
+        XCTAssertFalse(html.contains("Loading…"), html)
+    }
+
+    /// A theme change rewrites the head, which no section patch can express.
+    @MainActor
+    func testThemeChangeStillReloads() async throws {
+        try seed([message("m1", offset: 1_000)])
+        try storeBody("m1", html: "<p>Hello</p>")
+        model = ThreadModel(env: env, threadId: "t1")
+        try await loadIntoWebView()
+        XCTAssertEqual(model.revision, 1)
+
+        env.theme.choice = .dark
+        model.systemSchemeChanged(.dark)
+
+        XCTAssertEqual(model.revision, 2)
     }
 
     @MainActor
@@ -570,6 +617,26 @@ nonisolated final class ThreadModelTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(300))
 
         XCTAssertEqual(model.revision, 1)
+    }
+
+    // MARK: - Web view helpers (patch path)
+
+    /// Puts the model's current document into the pooled web view and waits for the load, so
+    /// `webHost.loadedRevision == model.revision` and patches are possible.
+    @MainActor
+    private func loadIntoWebView() async throws {
+        let finished = expectation(description: "document loaded")
+        finished.assertForOverFulfill = false
+        env.webHost.onDocumentLoaded = { finished.fulfill() }
+        env.webHost.load(document: model.document, revision: model.revision)
+        await fulfillment(of: [finished], timeout: 5)
+        env.webHost.onDocumentLoaded = nil
+    }
+
+    @MainActor
+    private func webViewHTML() async -> String {
+        let result = try? await env.webHost.webView.evaluateJavaScript("document.body.innerHTML")
+        return result as? String ?? ""
     }
 }
 

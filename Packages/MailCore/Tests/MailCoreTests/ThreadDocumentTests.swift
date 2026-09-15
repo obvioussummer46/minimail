@@ -181,6 +181,58 @@ final class ThreadDocumentTests: XCTestCase {
         XCTAssertEqual(ThreadDocument.toggleScript(messageId: "18f\"x;"), expected)
     }
 
+    func testSectionsMatchRenderedDocument() {
+        let messages = [msg("a"), msg("b", expanded: false)]
+        let built = ThreadDocument.sections(messages: messages)
+        XCTAssertEqual(built.map(\.id), ["a", "b"])
+        let assembled = ThreadDocument.render(
+            subject: "S", sections: built.map(\.html), light: lightTokens, dark: darkTokens, forcedScheme: nil,
+            imagesAllowed: false)
+        XCTAssertEqual(assembled, render("S", messages))
+    }
+
+    func testSectionsSharesOneStrippingDecision() {
+        let big = String(repeating: "a", count: 1_400_000)
+        let messages = (0..<6).map { msg("m\($0)", expanded: $0 == 0, body: big, state: 1) }
+        let built = ThreadDocument.sections(messages: messages)
+        let stripped = ThreadDocument.strippedIds(messages: messages)
+        XCTAssertFalse(stripped.isEmpty)
+        for rendered in built {
+            XCTAssertEqual(rendered.html.contains("mm-stripped"), stripped.contains(rendered.id), rendered.id)
+        }
+    }
+
+    func testPatchSectionScriptCarriesSection() {
+        let html = ThreadDocument.sections(messages: [msg("a")])[0].html
+        let script = ThreadDocument.patchSectionScript(messageId: "a", sectionHTML: html)
+        XCTAssertTrue(script.contains("section.mm-msg[data-id=\"a\"]"), script)
+        XCTAssertTrue(script.contains("s.outerHTML="), script)
+        XCTAssertTrue(script.contains("if(!s){return false;}"), script)
+    }
+
+    func testPatchSectionScriptFiltersMessageId() {
+        let script = ThreadDocument.patchSectionScript(messageId: "18f\"x;", sectionHTML: "<i>x</i>")
+        XCTAssertTrue(script.contains("section.mm-msg[data-id=\"18fx\"]"), script)
+    }
+
+    /// A body that closes the literal, starts an escape or carries a line terminator must not be able to end
+    /// the injected statement.
+    func testJSStringLiteralEscapesBreakingCharacters() {
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\"b"), "\"a\\\"b\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\\b"), "\"a\\\\b\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\nb"), "\"a\\nb\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\r\nb"), "\"a\\r\\nb\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\u{2028}b"), "\"a\\u2028b\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\u{2029}b"), "\"a\\u2029b\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\u{0}b"), "\"a\\u0000b\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\u{1F}b"), "\"a\\u001Fb\"")
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("a\u{7F}b"), "\"a\\u007Fb\"")
+    }
+
+    func testJSStringLiteralKeepsOrdinaryText() {
+        XCTAssertEqual(ThreadDocument.jsStringLiteral("<p>hé · 🙂</p>"), "\"<p>hé · 🙂</p>\"")
+    }
+
     func testEmptyDocument() {
         let empty = ThreadDocument.empty(light: lightTokens, dark: darkTokens)
         let rendered = render("", [])

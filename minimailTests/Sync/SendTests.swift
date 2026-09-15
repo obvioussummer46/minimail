@@ -31,6 +31,7 @@ nonisolated final class SendTests: XCTestCase {
     private static let att2Path = "/gmail/v1/users/me/messages/a1/attachments/att2"
     private static let messagePath = "/gmail/v1/users/me/messages/a1"
     private static let listPath = "/gmail/v1/users/me/messages"
+    private static let historyPath = "/gmail/v1/users/me/history"
 
     private static let sendResponse = Data(#"{"id":"sent1","threadId":"a1","labelIds":["SENT"]}"#.utf8)
 
@@ -366,7 +367,10 @@ nonisolated final class SendTests: XCTestCase {
 
         await harness.outbox.drain()
 
-        XCTAssertEqual(paths(), [Self.att1Path, Self.messagePath, Self.att2Path, Self.sendPath])
+        // Only this send's own requests: `afterSend()` kicks a `.afterSend` delta sync (a `/history` call) that
+        // can land before this assertion, so filter it out and check the re-resolve flow itself.
+        let mine = paths().filter { $0 != Self.historyPath }
+        XCTAssertEqual(mine, [Self.att1Path, Self.messagePath, Self.att2Path, Self.sendPath])
         let query = try XCTUnwrap(StubURLProtocol.recorded[1].query)
         XCTAssertTrue(query.contains("format=full"), query)
         XCTAssertEqual(try storedAttachmentId(harness), "att2")

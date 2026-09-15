@@ -111,6 +111,9 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
 
     @ObservationIgnored private var cancellable: AnyDatabaseCancellable?
     @ObservationIgnored private var renderKey: RenderKey?
+    /// The HTML of each section of the document `revision` describes, keyed by message id. Diffed against the
+    /// next render to find the sections worth patching.
+    @ObservationIgnored private var sections: [String: String] = [:]
     @ObservationIgnored private var knownMessageIds: Set<String> = []
     @ObservationIgnored private var didAppear = false
     @ObservationIgnored private var openURLAction: ((URL) -> Void)?
@@ -217,16 +220,63 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
 
     /// Rebuilds only when the projection actually changed, so an unrelated observation tick never reloads the
     /// document (architecture §8.4). `force` is for Dynamic Type and for expanding a stripped section.
+    ///
+    /// When the change is confined to message sections — the usual case while 07 commits bodies one group at a
+    /// time — the loaded document is patched in place and `revision` does not move, so `MailWebView` does not
+    /// reload and the scroll position survives. Everything else still goes through a real reload.
     private func rebuild(force: Bool, bumpsRevision: Bool = true) {
         let key = makeRenderKey()
         guard force || key != renderKey else { return }
+        let previousKey = renderKey
+        let previousSections = sections
         renderKey = key
+        let built = ThreadDocument.sections(messages: key.messages)
+        sections = Dictionary(built.map { ($0.id, $0.html) }, uniquingKeysWith: { _, last in last })
         document = ThreadDocument.render(
-            subject: key.subject, messages: key.messages, light: key.light, dark: key.dark,
+            subject: key.subject, sections: built.map(\.html), light: key.light, dark: key.dark,
             forcedScheme: key.forcedScheme, imagesAllowed: key.imagesAllowed)
         guard bumpsRevision else { return }
+        if !force, let previousKey, ThreadModel.isPatchable(from: previousKey, to: key),
+            patchLoadedSections(previous: previousSections)
+        {
+            return
+        }
         revision &+= 1
         Log.ui.debug("thread.document.rebuilt \(self.threadId, privacy: .public) rev=\(self.revision)")
+    }
+
+    /// True when the two projections differ only inside message sections. The head is rebuilt from `light`,
+    /// `dark`, `forcedScheme` and `imagesAllowed` (the last one decides the CSP), and the subject is outside
+    /// every section, so a change to any of them cannot be patched. A message arriving or leaving changes the
+    /// section list itself, which `patchSectionScript` cannot express either.
+    private static func isPatchable(from old: RenderKey, to new: RenderKey) -> Bool {
+        old.subject == new.subject && old.light == new.light && old.dark == new.dark
+            && old.forcedScheme == new.forcedScheme && old.imagesAllowed == new.imagesAllowed
+            && old.messages.map(\.id) == new.messages.map(\.id)
+    }
+
+    /// One `outerHTML` swap per section whose HTML actually changed. False — meaning "reload instead" — when
+    /// there is no loaded document to patch: no web view has ever been created, or what it holds is not this
+    /// model's current revision (a recycled instance, or a load that has not happened yet). A section missing
+    /// from the DOM answers `false` from the script itself and forces the same reload.
+    private func patchLoadedSections(previous: [String: String]) -> Bool {
+        guard env.webHost.webViewIfCreated != nil, env.webHost.loadedRevision == revision else { return false }
+        let changed = sections.filter { previous[$0.key] != $0.value }
+        guard !changed.isEmpty else { return true }
+        // Every patch of one stale document fails, and each failure would otherwise queue its own reload.
+        // The first one moves `revision`, which stands the rest down.
+        let patched = revision
+        for (id, html) in changed {
+            evaluate(
+                ThreadDocument.patchSectionScript(messageId: id, sectionHTML: html),
+                onFalse: { [weak self] in
+                    guard let self, self.revision == patched else { return }
+                    self.rebuild(force: true)
+                })
+        }
+        Log.ui.debug(
+            "thread.document.patched \(self.threadId, privacy: .public) sections=\(changed.count) rev=\(self.revision)")
+        return true
     }
 
     // MARK: lifecycle
@@ -236,11 +286,16 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     func appeared() async {
         guard !didAppear else { return }
         didAppear = true
+        // The fetch is the only thing the screen is actually waiting on, so it is started first and the
+        // mark-read write runs alongside it. Mark-read is local and optimistic — one transaction plus an
+        // outbox kick — and the observation picks it up whenever it lands, so nothing is lost by not
+        // awaiting it before the request goes out.
+        let load = Task { [weak self] in await self?.loadThread() }
         if env.settings.settings.markReadOnOpen, (detail?.thread.unreadCount ?? 0) > 0 {
             didMarkRead = true
             await env.actions.markRead(threadId: threadId)
         }
-        await loadThread()
+        await load.value
     }
 
     private func loadThread() async {
@@ -330,6 +385,11 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
         }
         key.messages[index].expanded = willExpand
         renderKey = key  // keep the key in sync so the next observation tick does not reload
+        // `sections` has to follow the key: it is the baseline the next patch diffs against, and the class
+        // this script flips lives in the section's own markup.
+        sections = Dictionary(
+            ThreadDocument.sections(messages: key.messages).map { ($0.id, $0.html) },
+            uniquingKeysWith: { _, last in last })
         evaluate(
             ThreadDocument.toggleScript(messageId: messageId),
             onFalse: { [weak self] in self?.rebuild(force: true) })
