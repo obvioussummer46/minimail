@@ -129,19 +129,31 @@ extension AuthError: LocalizedError {
 
         var email: String? = state.email ?? cachedEmail
         if let fetch = hooks.fetchProfileEmail {
+            var fetched: String?
             do {
-                email = try await fetch()
+                fetched = try await fetch()
             } catch {
-                await tokens.revokeAndClear()
-                try fail(.flowFailed("profile: \(error.localizedDescription)"))
-            }
-            if let cached = cachedEmail, cached.caseInsensitiveCompare(email!) != .orderedSame {
+                // A real auth rejection means the just-adopted token is useless: revoke and bounce. A transient
+                // failure (offline, network, rate-limit, server) must not throw away a valid session — the launch
+                // sync re-fetches the profile and does the identity check with proper retry.
+                if Self.profileFailureIsFatal(error) {
+                    await tokens.revokeAndClear()
+                    try fail(.flowFailed("profile: \(Self.profileErrorMessage(error))"))
+                }
                 Log.auth.notice(
-                    "sign-in: account changed \(cached, privacy: .private) → \(email!, privacy: .private); wiping"
+                    "sign-in: profile fetch failed transiently, keeping session: \(String(describing: error), privacy: .public)"
                 )
-                await hooks.prepareSignOut()
-                await hooks.wipeAccountData()
-                cachedEmail = nil
+            }
+            if let fetched {
+                email = fetched
+                if let cached = cachedEmail, cached.caseInsensitiveCompare(fetched) != .orderedSame {
+                    Log.auth.notice(
+                        "sign-in: account changed \(cached, privacy: .private) → \(fetched, privacy: .private); wiping"
+                    )
+                    await hooks.prepareSignOut()
+                    await hooks.wipeAccountData()
+                    cachedEmail = nil
+                }
             }
         }
 
@@ -283,6 +295,35 @@ extension AuthError: LocalizedError {
         if let d = response?[OIDOAuthErrorFieldErrorDescription] as? String { parts.append(d) }
         if !parts.contains(ns.localizedDescription) { parts.append(ns.localizedDescription) }
         return .flowFailed("\(ns.domain)#\(ns.code): " + parts.joined(separator: " — "))
+    }
+
+    /// Whether a sign-in profile-fetch failure should discard the freshly adopted token. Only a genuine auth
+    /// rejection is fatal; transient errors keep the session so the launch sync can validate identity and retry.
+    nonisolated static func profileFailureIsFatal(_ error: any Error) -> Bool {
+        switch error {
+        case let g as GmailError:
+            switch g {
+            case .unauthorized, .forbidden: return true
+            default: return false
+            }
+        case let a as AuthError:
+            switch a {
+            case .needsReauth, .signedOut, .missingRefreshToken: return true
+            default: return false
+            }
+        default:
+            return false
+        }
+    }
+
+    /// The sentence shown for a profile-fetch failure. `GmailError` only conforms to `Error`, so its
+    /// `.localizedDescription` is the useless "(minimail.GmailError error N.)"; use `userMessage` instead.
+    nonisolated static func profileErrorMessage(_ error: any Error) -> String {
+        switch error {
+        case let g as GmailError: return g.userMessage
+        case let a as AuthError: return a.errorDescription ?? "\(a)"
+        default: return (error as NSError).localizedDescription
+        }
     }
 
     /// Whether a first-attempt failure warrants one retry without the optional `hd` parameter.

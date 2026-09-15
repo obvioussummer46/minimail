@@ -326,6 +326,33 @@ nonisolated final class AuthStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testProfileFailureIsFatal() {
+        // Genuine auth rejections discard the freshly adopted token.
+        XCTAssertTrue(AuthStore.profileFailureIsFatal(GmailError.unauthorized))
+        XCTAssertTrue(AuthStore.profileFailureIsFatal(GmailError.forbidden(reason: "orgPolicy")))
+        XCTAssertTrue(AuthStore.profileFailureIsFatal(AuthError.needsReauth))
+        XCTAssertTrue(AuthStore.profileFailureIsFatal(AuthError.missingRefreshToken))
+        // Transient failures keep the session so the launch sync can validate identity and retry.
+        XCTAssertFalse(AuthStore.profileFailureIsFatal(GmailError.offline))
+        XCTAssertFalse(AuthStore.profileFailureIsFatal(GmailError.network(code: -1009)))
+        XCTAssertFalse(AuthStore.profileFailureIsFatal(GmailError.rateLimited(retryAfter: nil)))
+        XCTAssertFalse(AuthStore.profileFailureIsFatal(GmailError.server(status: 503)))
+        XCTAssertFalse(AuthStore.profileFailureIsFatal(GmailError.decoding("bad")))
+        XCTAssertFalse(AuthStore.profileFailureIsFatal(URLError(.timedOut)))
+    }
+
+    @MainActor
+    func testProfileErrorMessageUsesUserMessage() {
+        // The old code showed error.localizedDescription, i.e. "(minimail.GmailError error 6.)".
+        XCTAssertEqual(AuthStore.profileErrorMessage(GmailError.unauthorized), "Sign in again")
+        XCTAssertEqual(AuthStore.profileErrorMessage(GmailError.offline), "Offline")
+        XCTAssertEqual(AuthStore.profileErrorMessage(GmailError.historyExpired), "Resyncing")
+        XCTAssertEqual(AuthStore.profileErrorMessage(AuthError.needsReauth), AuthError.needsReauth.errorDescription)
+        // No raw enum ordinal leaks through for any GmailError case.
+        XCTAssertFalse(AuthStore.profileErrorMessage(GmailError.server(status: 500)).contains("GmailError error"))
+    }
+
+    @MainActor
     func testAuthErrorDescriptions() {
         XCTAssertEqual(AuthError.signedOut.errorDescription, "Not signed in.")
         XCTAssertEqual(AuthError.needsReauth.errorDescription, "Your Google session has expired. Sign in again.")
