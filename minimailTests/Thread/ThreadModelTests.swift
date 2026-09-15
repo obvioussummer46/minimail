@@ -43,6 +43,17 @@ nonisolated final class ThreadModelTests: XCTestCase {
         }
     }
 
+    @MainActor func waitUntilAsync(_ timeout: TimeInterval = 2, _ cond: @escaping () async -> Bool) async {
+        let start = Date()
+        while await !cond() {
+            if Date().timeIntervalSince(start) > timeout {
+                XCTFail("waitUntil timed out")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
     // MARK: - Seeding helpers
 
     @MainActor
@@ -209,7 +220,7 @@ nonisolated final class ThreadModelTests: XCTestCase {
 
         await waitUntil { self.model.document.contains("Hello") }
         XCTAssertEqual(model.revision, 1, "a body landing must patch, not reload")
-        await waitUntil { await self.webViewHTML().contains("Hello") }
+        await waitUntilAsync { await self.webViewHTML().contains("Hello") }
         let html = await webViewHTML()
         XCTAssertFalse(html.contains("Loading…"), html)
     }
@@ -607,11 +618,6 @@ nonisolated final class ThreadModelTests: XCTestCase {
 
         XCTAssertEqual(model.revision, 1)
     }
-}
-
-/// Captures the URL handed to `openURL` from a closure the model owns.
-@MainActor private final class URLBox {
-    var url: URL?
 
     // MARK: - Web view helpers (patch path)
 
@@ -632,5 +638,9 @@ nonisolated final class ThreadModelTests: XCTestCase {
         let result = try? await env.webHost.webView.evaluateJavaScript("document.body.innerHTML")
         return result as? String ?? ""
     }
+}
 
+/// Captures the URL handed to `openURL` from a closure the model owns.
+@MainActor private final class URLBox {
+    var url: URL?
 }
