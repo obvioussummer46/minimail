@@ -1,4 +1,3 @@
-import CoreGraphics
 import MailCore
 import SwiftUI
 
@@ -56,34 +55,5 @@ struct ThreadRowView: View {
         if row.hasAttachments { parts.append("Has attachment") }
         for chip in row.chips { parts.append("Label \(chip.name)") }
         return parts.joined(separator: ", ")
-    }
-}
-
-/// Gmail-coloured capsule for one user label.
-struct LabelChip: View {
-    let chip: ThreadChip
-    @ThemeTokensReader private var themeTokens
-
-    init(chip: ThreadChip) { self.chip = chip }
-
-    var body: some View {
-        Text(chip.name)
-            .font(.caption2).lineLimit(1)
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .foregroundStyle(LabelChip.color(hex: chip.textColor) ?? themeTokens.text)
-            .background(Capsule().fill(LabelChip.color(hex: chip.backgroundColor) ?? themeTokens.chipBackground))
-            .accessibilityHidden(true)
-    }
-
-    /// `"#rrggbb"` → `Color`; anything else → `nil`. Built through `CGColor(srgbRed:…)` so the raw-colour lint grep
-    /// over `minimail/Features` does not match this file.
-    nonisolated static func color(hex: String?) -> Color? {
-        guard let hex, hex.count == 7, hex.hasPrefix("#") else { return nil }
-        let digits = hex.dropFirst()
-        guard let value = UInt32(digits, radix: 16) else { return nil }
-        let r = Double((value >> 16) & 0xFF) / 255
-        let g = Double((value >> 8) & 0xFF) / 255
-        let b = Double(value & 0xFF) / 255
-        return Color(cgColor: CGColor(srgbRed: r, green: g, blue: b, alpha: 1))
     }
 }
