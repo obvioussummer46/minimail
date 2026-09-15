@@ -73,7 +73,7 @@ targets:
     entitlements:
       path: minimail/minimail.entitlements
       properties:
-        keychain-access-groups: [com.minimail]
+        keychain-access-groups: ["$(AppIdentifierPrefix)com.minimail"]
     scheme:
       testTargets: [minimailTests]
       gatherCoverageData: true
