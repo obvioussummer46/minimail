@@ -94,6 +94,92 @@ The risk list below is kept for the record; every item in it has since been sett
    real Gmail response. The first live batch call is the real test.
 5. **`attachmentId` stability.** Treated as transient, re-read on every open, as the research advises.
 
+## 04 auth
+
+Built and verified on a Mac (Xcode 26.6, iPhone 17 simulator), not just in CI. All 56 module-04 tests plus
+module 01's 42 pass (98 total); lint clean.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D1 | `OAuthConfig.hostedDomain = "newtelco.de"` (restrict sign-in to the Workspace domain) | `hostedDomain = nil` | minimail is a generic Gmail client with no organisation affiliation; any Google account may sign in. The one-retry-without-`hd` path stays (dead but harmless). |
+| D2 | App identifier `de.newtelco.minimail` | `com.minimail` (bundle id, Keychain service, log subsystem, BGTask id, defaults keys) | Same reason as D1. Owner must register the OAuth client and Apple bundle id against `com.minimail`. |
+
+### Real bugs the tests found
+
+1. **Transient-refresh error was swallowed.** AppAuth's `performActionWithFreshTokens` returns the *stale*
+   access token *alongside* a transient (network) error (`OIDAuthState.m` line 576). Spec §4.4's callback
+   checks `if let token` first, so a failed refresh silently returned an expired token. Fixed: the callback
+   checks `error` first, so transport failures surface as `URLError` (retryable) as intended.
+
+### Resolved unknowns
+
+- **A2** `resumeExternalUserAgentFlowWithURL:error:` is `NS_SWIFT_NAME(resumeExternalUserAgentFlow(_:))` and
+  imports as **throwing**. The throwing variant of §4.12 is the one used.
+- **A4** `OIDURLSessionProvider.setSession(_:)` with a custom `protocolClasses` session **does** intercept
+  AppAuth's token requests, so the fallback (`URLProtocol.registerClass`) is not needed.
+- **A1** AppAuth error constants resolved from `OIDError.h`: `OIDErrorCodeOAuth.invalidGrant` (-10),
+  `OIDErrorCode.networkError` (-5), `.tokenRefreshError` (-11), `.userCanceledAuthorizationFlow` (-3),
+  `.programCanceledAuthorizationFlow` (-4); domains/keys as spelled.
+- **A10 was WRONG.** Keychain does **not** work in the simulator without entitlements: unsigned builds
+  (`CODE_SIGNING_ALLOWED=NO`) return `errSecMissingEntitlement` (-34018). Fix: ad-hoc simulator signing
+  (`CODE_SIGN_IDENTITY=-`, `CODE_SIGNING_ALLOWED=YES`) + a `keychain-access-groups` entitlement + a generated
+  test-target Info.plist (`GENERATE_INFOPLIST_FILE=YES`). The Makefile's `NOSIGN` now means ad-hoc, not
+  no-sign, and the CI `ios` job inherits this through `make`.
+- **A7** SwiftUI `.accessibilityIdentifier` is not visible via UIKit `accessibilityIdentifier` on hosted views
+  in this SDK, so `testRootViewHostsSignedOut` takes the documented degradation (asserts the view laid out).
+
+## 05 gmail-client
+
+Built and verified on a Mac. 81 module-05 tests pass (GmailErrorTests 25,
+RequestLimiterTests 3, RequestLogTests 2, GmailClientTests 51); 179 app tests
+green overall; lint clean. Every §9 acceptance category is covered.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D1 | `GmailClientTests` load the module-03 `Fixtures/gmail/*.json` catalogue | Tests use inline JSON bodies (and a `stubBatchBody` builder) | Module 03 inlined its fixtures rather than creating the files (its own D1), so the catalogue does not exist. Inline bodies keep the tests self-contained and green; module 14 can migrate them to a catalogue. |
+| D2 | ~84 tests | 81 written | Every DoD category is covered; three narrow fixture-only variants were folded into equivalent inline tests. |
+
+### Notes
+
+- `@Sendable` stub-handler closures cannot capture the (non-Sendable) `XCTestCase`,
+  so the batch helpers (`stubPartIds`, `stubBatchBody`, `stubEncodeFields`) and the
+  round counter (`AtomicInt`) are file-scope `nonisolated` declarations, not methods.
+- `GmailError`'s `CustomStringConvertible` conformance had to be declared on the
+  `nonisolated` type itself (not an extension) or the conformance is inferred
+  MainActor-isolated under `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+- `URL.path` percent-decodes, so attachment-id encoding (`=` → `%3D`) is asserted
+  against `url.absoluteString`, not `.path`.
+
+## 06 storage
+
+Built and verified on a Mac. 44 new app tests (DatabaseTests 8, RepositoryTests
+22, QueriesTests 11, AppEnvironmentTests +3) and 37 new MailCore tests pass; 223
+app + 186 MailCore green overall; lint clean; `minimail/Store` imports only
+Foundation/GRDB/MailCore/MailHTML and mutations live only in repositories.
+
+### Deviations / real findings
+
+| # | Item | Resolution |
+|---|---|---|
+| D1 | `OutboxCoalescer.merge` formula | The spec's non-cancelling formula contradicted `testInverseCancels` and acceptance §9.5 ("read→unread → zero rows"). Uses the cancelling form; `testNewIntentWins` expectation adjusted accordingly. |
+| D2 | Effective labels vs failed outbox ops | The spec's `rearmFailedModifies` "E is unchanged, no recompute" is only true if **failed** modify ops still contribute to effective labels. `recomputeEffective` and `InvariantChecks` therefore use pending **+ inFlight + failed** (a failed archive stays optimistically applied until acked/discarded/rearmed), which invariant 1's "pending/inFlight" wording understates. |
+| D3 | `today.json` day-boundary vectors | The spec literals mixed 2025/2026 dates; recomputed for 2026 per the spec's own instruction. |
+| D4 | `testRecordJSONBytes` byte-exact SendJob sample | Deferred; JSON columns are covered by round-trip + sorted-keys behaviour instead of the one hand-transcribed literal. |
+
+### Notes
+
+- Records with JSON columns conform through a `nonisolated protocol JSONColumnRecord`
+  so GRDB's `FetchableRecord`/`EncodableRecord` conformance is not inferred
+  MainActor under `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
+- The UNVERIFIED GRDB API names compiled as written: `Configuration.publicStatementArguments`,
+  `DatabaseMigrator.eraseDatabaseOnSchemaChange`, `DatabaseWriter.vacuum()`. No fallback needed.
+- GRDB's `read`/`write` resolve to their **async** overloads inside an `async` test, so
+  those calls must be `await`-ed and cannot sit inside an `XCTAssert` autoclosure.
+
 ## Verification status (CI is the compiler)
 
 `.github/workflows/ci.yml` gives this project a compiler without a Mac. The `core` job runs `swift test` for
@@ -123,3 +209,198 @@ verified, not merely written.
 - `nonisolated` on a type declaration compiles in this toolchain, so `Log`, `Formatters`, `Settings` and
   `ThemeChoice` are fine as written.
 - Swift on the Linux runner is 6.1.3.
+
+## 08 html-rendering (MailCore half: T08.1–T08.4)
+
+The dependency-free half (MailHTML `Sanitizer`/`StyleScrubber`/`TrackingPixel`/`DarkStrategyClassifier`/
+`SignatureSanitizer`/`QuoteExtractor` and MailCore `ThreadDocument`) is built and green: 56 new tests,
+270 MailCore/MailHTML tests total. Built ahead of module 07 because `SyncEngine.prepareBody` needs
+`Sanitizer` to compile the app target (user decision, 2026-09-13). The app-target `Web/` half (T08.5–T08.8:
+`WebViewHost`, `CIDSchemeHandler`, `InlineImageStore`, `MailWebView`, `LinkPolicy`, `WebBridge`, the `[08]`
+`AppEnvironment` wiring) is module-10 infrastructure and is **not yet built**.
+
+### Deviations / SwiftSoup findings
+
+| # | Item | Resolution |
+|---|---|---|
+| D1 | `cidPathAllowed` | Spec subtracts only `/%` from `urlPathAllowed`, which keeps `@`; the tests expect an `@` in a Content-ID to encode as `%40`, so `@` is subtracted too. |
+| D2 | SwiftSoup void tags | SwiftSoup always serialises `<img … />` (XHTML) even in HTML syntax; the app normalises ` />`→`>` (`Sanitizer.normalizeVoidTags`). |
+| D3 | SwiftSoup source-patch serialization | With `prettyPrint == false`, this SwiftSoup version serialises a parsed doc from its source buffer patched per *dirty* node, and `attr`/`removeAttr` do **not** mark nodes dirty — so those mutations vanish. `Sanitizer.compactBodyHTML` serialises a `doc.copy()` (no source buffer) instead, giving compact output that reflects mutations. |
+| D4 | `MailHTMLTests` deps | Added `SwiftSoup` to the test target (classifier tests need `SwiftSoup.Document`). |
+
+## 07 sync-outbox (T07.3–T07.9 production + core tests)
+
+All production code (`SyncStatus`, `SyncEngine`, `Outbox`/`OutboxIdentitySource`, `MailActions`,
+`Maintenance`, `BackgroundRefresh`, `AppEnvironment`/`MinimailApp` `[07]` wiring) is built and the app
+compiles. A shared harness (`SyncTestSupport`) plus 12 core `SyncEngineTests`/`OutboxTests` pass on the
+iPhone 17 simulator. The remaining suites (`SendTests`, `ConflictTests`, `ResyncTests`, `MaintenanceTests`,
+`BackgroundRefreshTests`, and the rest of `SyncEngineTests`/`OutboxTests` toward the spec's ~113) are **not
+yet written**; they build on the same harness.
+
+### Deviations
+
+| # | Item | Resolution |
+|---|---|---|
+| D1 | `OutboxRepository.retryLater` | 06 ships `retryLater(…, error: String, countsAsAttempt: Bool, nextAttemptAt: Int64)` (not `error:now:random:`). `Outbox` computes the `Backoff.outbox` delay and passes `nextAttemptAt`; 06 decides pending-vs-failed by the 8/5 threshold. |
+| D2 | `MaintenanceRepository` (spec D2) not created | 06 already exposes `ThreadRepository.deleteExpired`, `BodyRepository.pruneBodies`, `OutboxRepository.deleteFailedSends`; `Maintenance.cleanup` calls those, so no SQL lives in `App/` and the extra repo file is unnecessary. |
+| D3 | `replaceDatabase` / rebuilt `actions` unused | `AppEnvironment.db` is one stable `DatabasePool` reset in place (`AppDatabase.reset`), so the O1 wipe tail is a no-op; the methods stay for API completeness. |
+| D4 | `BackgroundRefresh.schedule` | Uses `BGTaskScheduler.submit(_:)` on all OS versions; the UNVERIFIED iOS 27 async `submitTaskRequest` branch is omitted for SDK compatibility. |
+
+### Real bug found by the tests
+
+- The Outbox drain's trailing status update set `status.isOffline = sawOffline` unconditionally. Because
+  every `SyncEngine.execute` ends with a drain, a no-op drain right after an offline request wiped the flag
+  the run had just raised. Fixed: the drain only *raises* `isOffline`; a successful request clears it via
+  `SyncEngine.noteResult`.
+
+### SwiftSoup/GRDB gotcha in the harness
+
+- Multi-statement `map` closures returning a `#"…\#(…)…"#` raw string literal in a file that imports GRDB
+  resolve to GRDB's `SQL` (which has `[SQL].joined(separator:)`), not `String`, silently producing
+  `SQL(elements: …)` text. Annotate such closures `-> String` (`JSONFixtures.modifyResponse`).
+
+## 08 html-rendering (app half: T08.5–T08.8)
+
+`minimail/Web/` is built: `WebBridge`, `LinkPolicy`, `CIDSchemeHandler`, `InlineImageStore`,
+`RuleLists`/`WebViewHost`, `MailWebView`, plus the `[08]` `AppEnvironment` wiring (construction, the
+deferred `webHost.prepare()`, the sign-out wipe tail). New app tests: `WebBridgeTests` (5),
+`InlineImageStoreTests` (11), `WebViewHostTests` (9), `AppEnvironmentTests.testWebHostConstructedWithoutWebView`.
+Module 08 is now complete and module 10 is unblocked.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D9 | `load(document:revision:)` sets `linkPolicy.onDidFinish` to end the `documentLoad` signpost | The host sets `linkPolicy.onDidFinish` once, when it creates the instance, and republishes it as `WebViewHost.onDocumentLoaded` | There is one delegate slot. With the spec's form, every caller that wants to know a load finished (10, and §7.3's own `testLoadAndRecycle`) has to overwrite the callback that ends the signpost, and the overwrite races the load it is waiting for. |
+| D10 | `RuleLists` has no store override | `RuleLists.storeOverride` added | §10 O2's documented fallback if `WKContentRuleListStore.default()` is nil in the test host; nil in the app. |
+| D11 | `MailWebView.dismantleUIView` calls `host.didDetach()` | The container holds a weak `webViewHost` and the body runs inside `MainActor.assumeIsolated` | `dismantleUIView` is a static, non-isolated requirement; the assumption is what WebKit and SwiftUI already guarantee (§10 A4). |
+| D12 | `WebViewHost` exposes no way to see whether the instance exists | `webViewIfCreated` is `private(set)` rather than private | `AppEnvironmentTests` asserts launch step 1 creates no `WKWebView`, which spec §8 T08.8 requires. |
+
+### Risk list (first Mac/CI run answers these)
+
+1. **`WKUserContentController.removeAllContentRuleLists()`** (§10 A5). Used as written; if the name is
+   missing, fallback F3 (track the attached list and `remove(_:)`).
+2. **`@MainActor` conformances to `WKScriptMessageHandler`, `WKURLSchemeHandler`, `WKNavigationDelegate`,
+   `WKUIDelegate`** (§10 A4). Written without `@preconcurrency`; add it per conformance if Swift 6 objects.
+3. **The async-only `decidePolicyFor`.** Only the `async` variant is implemented, as the research advises.
+4. **`URL.path` already percent-decodes**, so `WebBridge.parse(actionURL:)` decodes a second time. Harmless
+   for the ids Gmail produces; a part id containing a literal `%` would be mangled.
+5. **`evaluateJavaScript` with `allowsContentJavaScript = false`.** `testLoadAndRecycle` is the check that
+   app-initiated evaluation still runs (architecture §14 #3); a failure there means fallback F1 for 10.
+6. **Timing in `WebViewHostTests`.** The warm-up load is awaited before each test's own load so the
+   expectation cannot be fulfilled by the wrong navigation.
+
+
+## 10 thread-view (T10.1–T10.7)
+
+`minimail/Features/Thread/` is built: `ThreadModel`, `AttachmentOpener`, `ThreadScreen`. New app tests:
+`ThreadModelTests` (28), `ThreadViewsTests` (8), `AttachmentOpenerTests`. Whole suite green at 335 tests.
+T10.8 (device pass) is still open — it cannot be scripted.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D13 | §4.10 step 11 passes the injected `FileManager` into the detached write | The task constructs its own `FileManager()` | `FileManager` is not `Sendable`; capturing the injected one is a `sending`-parameter data race under Swift 6. |
+| D14 | §6.2 builds the four bottom-bar buttons inline | Each is a `ThreadActionButton` view, and `body` is split into `chrome` / `content` / a `@ToolbarContentBuilder` | The inline forms exceed the type checker's budget twice over ("unable to type-check this expression in reasonable time") — first the toolbar group, then the whole `body` chain. |
+| D15 | §4.6 step 4 forces a reload whenever `webHost.loadedRevision != revision` | Only when a `WKWebView` actually exists | With no instance there is no loaded document to reload, and bumping `revision` would contradict §10 test `testToggleKeepsRevision`. The document is still rebuilt so the first load picks up the new state. |
+| D16 | `apply(nil)` dismisses and returns | It rebuilds first | Otherwise `document` stays empty for a thread that is already gone, and the web view would load an empty string (§10 `testMissingThreadDismissesImmediately`). |
+| D17 | Tests construct `AppEnvironment(testing: true)` and script `StubURLProtocol` | `AppEnvironment.testTokenProvider` added next to `testURLProtocolClasses` | The test host has no keychain item, so the real provider fails every request with `.unauthorized` before it is sent. `testURLProtocolClasses` also has to be swapped off its `OfflineURLProtocol` default or no scripted route is reachable. |
+
+### Spec errors found by CI (running total: 6)
+
+5. §10 `testLoadImagesIsPerMessage` asserts `document.contains("src=\"https://x/m2.png\"")` is false, but
+   `data-src="…"` ends in `src="…"`, so the assertion can never hold. Both halves are now matched whole.
+6. §7.3 `InlineImageStoreTests` seeds a body without recomputing the thread aggregates, so
+   `thread.bodiesMissing` stays 1 and invariant 6 trips in `testReresolveOn404`.
+
+## 11 compose (T11.1–T11.6)
+
+`minimail/Features/Compose/` is built: `ComposeModel` (with `ComposePhase`, `ComposeAttachmentItem`,
+`ComposeAddressField`, `ComposeDraftBuilder`) and `ComposeScreen`. The interim `ComposeScreen` placeholder is
+gone. New app tests: `ComposeModelTests` (27), `ComposeViewsTests` (12). Whole suite green at 374 tests.
+
+### Deviations
+
+| # | Spec says | Built as | Why |
+|---|---|---|---|
+| D18 | §6.4 `Section("Attachments") { … } footer: { … }` | `Section { … } header: { Text("Attachments") } footer: { … }` | SwiftUI has no `Section(_ titleKey:content:footer:)`; the spec's form does not compile. |
+| D19 | §6.1 builds the whole sheet in one `body` | `body` → `chrome` → `content`, a `@ToolbarContentBuilder`, and a `ComposeForm` / section view per group | The same type-checker budget that forced D14 in module 10. Applied up front here. |
+| D20 | §6.7 sets focus from the screen's `.onChange(of: model.phase)` | `load()` sets it right after `await makeDraft()` | One place, one assignment, and no second observation of a value the screen already awaited. |
+
+### Spec errors found by CI (running total: 8)
+
+7. §6.4's attachments section uses a `Section` initializer that does not exist (see D18).
+8. §7.1 `testQuoteWaitsForBodyThenEnables` expects `quotePreview == ""` before the body arrives, but §4.4 falls
+   the provisional quote text back to `original.snippet`; the fixture's snippet has to be empty for that.
+   `testSendEnqueuesOneOutboxRow` likewise expects the row to still read `transmitState == .notSent`, but
+   `MailActions.send` awaits `outbox.drain()`, which sets `.maybeSent` before the POST.
+
+## Backfill: SendTests (07 T07.9) and the Gmail signature bridge
+
+`Outbox.performSend` shipped in module 07 with only the modify path under test. `minimailTests/Sync/SendTests.swift`
+(18 tests) is the first execution of the send branches: the `rfc822msgid` duplicate check, the `maybeSent`
+window, the attachment budget, the `attachmentId` re-resolve on 404, reply vs forward quoting, the signature,
+and the `Date` stamp. 11 passed on the first run.
+
+### Defect the backfill found
+
+`Outbox.drain` set `sawOffline` only from the modify path, so a queued **send** that failed offline left
+`status.isOffline` false — the inbox banner stayed quiet and the user saw a stuck outbox with no explanation.
+`performSend` now returns `.stop(offline:)` and `drain` raises the flag. (Spec §7.6 asserted this behaviour;
+the implementation never had it.)
+
+### Test-harness notes
+
+- `afterSend()` starts an unstructured `sync.run(.afterSend)` that outlives the test, and `StubURLProtocol`'s
+  recorded list is process-global, so `SendTests.tearDown` cancels the harness's engine and outbox. Without it a
+  leaked run's `/profile` calls surface in the next test's assertions.
+- `SyncHarness.setSettings` feeds the **engine's** snapshot closure. The signature reaches the MIME builder
+  through `OutboxIdentitySource`, which the harness gives a separate `SettingsStore`; a signature test has to
+  write to `harness.identity.settings` or it passes vacuously.
+
+### Signature bridge
+
+`SyncEngine.fullSync` already stored the preferred send-as signature in `syncState.sendAsSignature`, and
+`OutboxIdentitySource.current()` already fed `Settings.signatureHTML` to `OutgoingBodies` — but nothing moved
+the one into the other, so outgoing mail carried no signature and module 13 owns the only editor.
+`SignatureImport.adoptGmailSignatureIfUnset` (called from `startDeferredWork` after the launch sync) sanitizes
+it through 08's `SignatureSanitizer` and adopts it once, guarded by a defaults flag so a later sync cannot undo
+an owner who clears it. Module 13's `SignatureEditorModel.importFromGmail` reads the same key and supersedes it.
+
+## Signature editor (13, partial): the owner can now edit the HTML signature
+
+The signature was end-to-end except for the editor: `SyncEngine.fullSync` stores the Gmail send-as signature,
+`SignatureImport` adopts it once, `OutboxIdentitySource` feeds it to `OutgoingBodies` — but nothing let the owner
+change it. This ships the signature slice of module 13 and leaves the rest of that module (theme picker, compose
+style, badge, Advanced, sign-out) on the placeholder screen.
+
+- `minimail/Features/Settings/SignatureEditorModel.swift` — `SignatureEditorModel` (load / debounced preview /
+  import / save, §4.9–§4.11), `SignaturePreviewDocument`, `SignatureSummary`, `SignatureImportState`,
+  `SignatureSanitizeOutcome`, and `SettingsStrings` with the signature strings only (module 13's
+  `SettingsModel.swift` adds the rest).
+- `minimail/Features/Settings/SignatureEditorScreen.swift` — the `Form`, the footers, and `SignaturePreviewView`
+  over a throwaway `WKWebView` (`WebViewHost.makeThrowawayWebView`), so the pooled instance behind the sheet keeps
+  its document.
+- `minimail/Features/Inbox/InboxPlaceholders.swift` — the placeholder `SettingsScreen` gained the real Signature
+  row (summary line + editor push) and the "Use Signature" toggle. Module 13 deletes the file as planned.
+- Tests: `minimailTests/Settings/SignatureEditorModelTests.swift` (§7.2) and
+  `minimailTests/Settings/SignatureDocumentTests.swift` (preview document, summary line, two hosting smoke tests).
+
+### Deviations from spec 13
+
+1. §4.9 hands a `Result<String, any Error>` back from the detached sanitize. `any Error` is not `Sendable`, so a
+   `Task.detached` returning it does not compile under `SWIFT_STRICT_CONCURRENCY: complete`. The detached task
+   returns `SignatureSanitizeOutcome` instead and maps the error to its sentence on the far side; only strings
+   cross the isolation boundary.
+2. §4.10 step 3 re-sanitizes only when `sanitized == nil && error == nil`. That saves the *previous* text when the
+   owner edits after a successful preview and taps Save inside the debounce window. The model tracks
+   `sanitizedSource` (the exact `html` that produced the current `sanitized`/`error`) and re-sanitizes whenever it
+   differs — `testSaveAfterEditReSanitizes` covers it.
+3. §6.10 uses `Section("HTML") { … } footer: { … }`, which is not a real `Section` initializer (the same spec
+   error as #7 above). Both the editor and the settings row use `Section(content:header:footer:)`.
+
+### Spec errors found by CI (running total: 10)
+
+9. §4.9's `Result<String, any Error>` across a `Task.detached` boundary (deviation 1).
+10. §6.10's `Section(_:content:footer:)` (deviation 3) — the second occurrence of spec error 7.

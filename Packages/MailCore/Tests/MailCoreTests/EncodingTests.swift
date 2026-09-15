@@ -76,7 +76,7 @@ final class QuotedPrintableTests: XCTestCase {
     }
 
     func testRoundTripThroughDecode() {
-        let original = "Viele Grüße\r\n\r\nMax Mustermann\r\n-- \r\nnewtelco GmbH"
+        let original = "Viele Grüße\r\n\r\nMax Mustermann\r\n-- \r\nExample GmbH"
         let encoded = QuotedPrintable.encode(Data(original.utf8))
         XCTAssertEqual(String(decoding: QuotedPrintable.decode(encoded), as: UTF8.self), original)
     }

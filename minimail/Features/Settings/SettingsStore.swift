@@ -3,7 +3,7 @@ import MailCore
 
 /// Reads and writes `Settings` as one JSON blob in `UserDefaults`.
 @Observable final class SettingsStore {
-    static let key = "de.newtelco.minimail.settings"
+    static let key = "com.minimail.settings"
 
     private(set) var settings: Settings
 

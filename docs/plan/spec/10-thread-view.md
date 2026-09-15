@@ -973,7 +973,7 @@ try await db.write { d in
     try BodyRepository.storeBody(d, messageId: "m1",
         body: SanitizedBody(html: "<div>Hello</div>", hasRemoteImages: false, darkStrategy: .plain, referencedContentIDs: []),
         text: "Hello", attachments: [], referenced: [], sanitizerVersion: Sanitizer.version, now: now)
-    try ThreadRepository.recomputeAggregates(d, threadIds: ["t1"], selfAddresses: ["user@newtelco.de"])
+    try ThreadRepository.recomputeAggregates(d, threadIds: ["t1"], selfAddresses: ["user@example.com"])
 }
 ```
 Helper `func waitUntil(_ timeout: TimeInterval = 2, _ cond: () -> Bool) async` polls every 20 ms (same as 09 §7). `tearDown`: `model.stop()`, `try? env.db.close()`, `StubURLProtocol.reset()`, `AppEnvironment.testURLProtocolClasses = [OfflineURLProtocol.self]`.

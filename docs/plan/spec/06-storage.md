@@ -732,13 +732,13 @@ import MailCore
 nonisolated enum TestDatabase {
     /// `AppDatabase.openInMemory()`.
     static func make() throws -> DatabaseQueue
-    /// `ParsedMessage` builder with defaults: threadId = id, historyId 1, snippet "", from "Alice <alice@example.com>", to "user@newtelco.de",
+    /// `ParsedMessage` builder with defaults: threadId = id, historyId 1, snippet "", from "Alice <alice@example.com>", to "user@example.com",
     /// subject "Subject", topMimeType "text/plain", body nil, attachments [].
     static func parsed(id: String, threadId: String? = nil, internalDate: Int64, labels: [String], from: Mailbox = Mailbox(name: "Alice", addr: "alice@example.com"),
-                       to: [Mailbox] = [Mailbox(name: nil, addr: "user@newtelco.de")], cc: [Mailbox] = [], subject: String = "Subject", snippet: String = "",
+                       to: [Mailbox] = [Mailbox(name: nil, addr: "user@example.com")], cc: [Mailbox] = [], subject: String = "Subject", snippet: String = "",
                        topMimeType: String? = "text/plain", messageID: String? = nil, inReplyTo: String? = nil, references: [String] = []) -> ParsedMessage
-    /// `upsertMetadata` + `recomputeAggregates` for the given messages in one write. selfAddresses default `["user@newtelco.de"]`.
-    static func seed(_ writer: any DatabaseWriter, _ messages: [ParsedMessage], selfAddresses: Set<String> = ["user@newtelco.de"], generation: Int = 1, now: Int64 = 1_757_500_000_000) throws
+    /// `upsertMetadata` + `recomputeAggregates` for the given messages in one write. selfAddresses default `["user@example.com"]`.
+    static func seed(_ writer: any DatabaseWriter, _ messages: [ParsedMessage], selfAddresses: Set<String> = ["user@example.com"], generation: Int = 1, now: Int64 = 1_757_500_000_000) throws
     /// Seeds `count` messages spread over `count / 2` threads (two per thread), internalDate = base + i × 60_000, every 5th unread,
     /// every 7th carries `Label_12`, every 11th hidden (TRASH); labels INBOX/UNREAD/Label_12/STARRED/SENT rows inserted first.
     static func seedMany(_ writer: any DatabaseWriter, count: Int, base: Int64 = 1_757_000_000_000) throws
@@ -1132,11 +1132,11 @@ Pragmas: GRDB sets `PRAGMA foreign_keys = ON` per connection (`foreignKeysEnable
 
 | Column | Example bytes |
 |---|---|
-| `message.toList` | `[{"addr":"bob@example.com","name":"Bob"},{"addr":"user@newtelco.de"}]` (nil `name` omitted) |
+| `message.toList` | `[{"addr":"bob@example.com","name":"Bob"},{"addr":"user@example.com"}]` (nil `name` omitted) |
 | `message.referencesList` | `["<root@example.com>","<m-plain@example.com>"]` |
 | `message.serverLabelIds` / `labelIds` / `thread.userLabelIds` / `outbox.addLabelIds` / `removeLabelIds` / `affectedMessageIds` | `["INBOX","Label_12","UNREAD"]` — `LabelAlgebra.sortedJSON` bytes; `[]` when empty |
-| `syncState.selfAddresses` | `["alias@newtelco.de","user@newtelco.de"]` |
-| `outbox.sendJob` | `{"attachments":[{"attachmentId":"ANGjdJ…","filename":"a.pdf","mimeType":"application/pdf","partId":"2","size":1234}],"cc":[],"includeSignature":true,"inReplyTo":"<m-plain@example.com>","messageID":"<8F0A…@newtelco.de>","mode":"replyAll","originalMessageId":"m-plain","quoteSource":{"author":{"addr":"alice@example.com","name":"Alice"},"cc":[],"date":1757488353000,"html":"<div>hi</div>","subject":"Plain hello","text":"hi","to":[{"addr":"user@newtelco.de"}]},"references":["<m-plain@example.com>"],"subject":"Re: Plain hello","threadId":"t-plain","to":[{"addr":"alice@example.com","name":"Alice"}],"typedText":"Thanks!"}` |
+| `syncState.selfAddresses` | `["alias@example.com","user@example.com"]` |
+| `outbox.sendJob` | `{"attachments":[{"attachmentId":"ANGjdJ…","filename":"a.pdf","mimeType":"application/pdf","partId":"2","size":1234}],"cc":[],"includeSignature":true,"inReplyTo":"<m-plain@example.com>","messageID":"<8F0A…@example.com>","mode":"replyAll","originalMessageId":"m-plain","quoteSource":{"author":{"addr":"alice@example.com","name":"Alice"},"cc":[],"date":1757488353000,"html":"<div>hi</div>","subject":"Plain hello","text":"hi","to":[{"addr":"user@example.com"}]},"references":["<m-plain@example.com>"],"subject":"Re: Plain hello","threadId":"t-plain","to":[{"addr":"alice@example.com","name":"Alice"}],"typedText":"Thanks!"}` |
 
 `QuoteSource.date` therefore round-trips as an integer millisecond count (no float drift).
 
@@ -1147,7 +1147,7 @@ Pragmas: GRDB sets `PRAGMA foreign_keys = ON` per connection (`foreignKeysEnable
 | `historyId` | decimal `UInt64` string, e.g. `"1234567"`; never decreases except `setHistoryId(_, allowDecrease: true)` (full resync) | 07 |
 | `syncGeneration` | decimal `Int`, starts at `1` on the first full sync | 07 |
 | `lastFullSyncAt`, `lastDeltaSyncAt`, `lastLabelCountsAt`, `lastCleanupAt` | epoch ms decimal | 07 |
-| `accountEmail` | `"user@newtelco.de"` (routing key of §5.2) | 07 |
+| `accountEmail` | `"user@example.com"` (routing key of §5.2) | 07 |
 | `displayName` | `"Jane Doe"` | 07 |
 | `selfAddresses` | sorted, lowercased JSON `[String]` | 07 |
 | `sendAsSignature` | raw HTML from `sendAs.signature` (import source only) | 07 |
@@ -1160,7 +1160,7 @@ Pragmas: GRDB sets `PRAGMA foreign_keys = ON` per connection (`foreignKeysEnable
 ### 5.5 Outbox row examples
 
 Modify (archive + mark read coalesced): `(id 7, kind 'modify', state 'pending', attempts 0, nextAttemptAt 0, createdAt 1757500000000, threadId 't1', addLabelIds '[]', removeLabelIds '["INBOX","UNREAD"]', affectedMessageIds '["m1","m2"]')`.
-Send after one transient failure: `(id 8, kind 'send', state 'pending', attempts 1, nextAttemptAt 1757500002000, lastError 'server(status: 503)', threadId 't-plain', sendJob '{…}', rfc822MessageId '<8F0A…@newtelco.de>', transmitState 'maybeSent')`.
+Send after one transient failure: `(id 8, kind 'send', state 'pending', attempts 1, nextAttemptAt 1757500002000, lastError 'server(status: 503)', threadId 't-plain', sendJob '{…}', rfc822MessageId '<8F0A…@example.com>', transmitState 'maybeSent')`.
 
 ### 5.6 `Fixtures/vectors/today.json`
 
@@ -1214,7 +1214,7 @@ Package tests run with `cd Packages/MailCore && swift test` (Linux + macOS). App
 | | `testCounts` | 3 messages: unread, unread+attachment, read; bodyState 0,1,2 | `messageCount 3`, `unreadCount 2`, `hasAttachments true`, `bodiesMissing 1` |
 | | `testLastInboxDateIgnoresNonInboxAndSelfSent` | m1 t=1 INBOX from alice; m2 t=2 INBOX isFromMe; m3 t=3 no INBOX | `lastInboxDate == 1`, `inInbox == true`, `lastDate == 3` |
 | | `testLastInboxDateNilWhenNone` | one message without INBOX | `lastInboxDate == nil`, `inInbox == false` |
-| | `testLastInboxDateSelfViaSelfAddresses` | m from `Me@NewTelco.de`, `isFromMe false`, selfAddresses `["me@newtelco.de"]` | `lastInboxDate == nil`, `participants == "Me"` |
+| | `testLastInboxDateSelfViaSelfAddresses` | m from `Me@example.com`, `isFromMe false`, selfAddresses `["me@example.com"]` | `lastInboxDate == nil`, `participants == "Me"` |
 | | `testParticipantsOrderDedupeMe` | alice t=1, me t=2, alice t=3 (`Alice@Example.com`), bob t=4 | `participants == "Alice, Me, Bob"` |
 | | `testParticipantsMaxThree` | alice, bob, carol, dave | `== "Alice, Bob, Carol…"` |
 | | `testFirstNameRules` | `("Alice Müller","a@x")`, `("Müller, Bob","b@x")`, `("\"Carol Q\"","c@x")`, `(nil,"dave@x")`, `("  ","eve@x")`, `(nil,"")` | `"Alice"`, `"Bob"`, `"Carol"`, `"dave"`, `"eve"`, `"?"` |
@@ -1305,7 +1305,7 @@ Package tests run with `cd Packages/MailCore && swift test` (Linux + macOS). App
 | | `testFailedSendsAndOutboxCounts` | 1 pending modify, 1 inFlight send, 1 failed send, 1 failed modify | `failedSends().count == 1`; `outboxCounts == (pending: 2, failed: 1)` |
 | | `testInboxUnreadThreadCount` | seedMany(200) | equals `SELECT COUNT(*) … inInbox = 1 AND unreadCount > 0` |
 | `App/AppEnvironmentTests.swift` | `testTestingModeOpensTemporaryDatabase` | `AppEnvironment(testing: true)` | `env.databaseDirectory.path.contains("minimail-db-")`; `try env.db.read { try SyncStateRepository.get($0, .accountEmail) } == nil` |
-| | `testCachedEmailReadFromSyncState` | temp dir with `accountEmail = "x@newtelco.de"` written through `AppDatabase.open`; construct `AppEnvironment` pointing at it (via a `testing: true` env whose pool is then seeded and a second init reading the same directory — use the internal `init(testing:databaseDirectory:)` overload added for tests) | `auth.state == .needsReauth("x@newtelco.de")` when no Keychain item (04 truth table) |
+| | `testCachedEmailReadFromSyncState` | temp dir with `accountEmail = "x@example.com"` written through `AppDatabase.open`; construct `AppEnvironment` pointing at it (via a `testing: true` env whose pool is then seeded and a second init reading the same directory — use the internal `init(testing:databaseDirectory:)` overload added for tests) | `auth.state == .needsReauth("x@example.com")` when no Keychain item (04 truth table) |
 | | `testWipeAccountDataResetsDatabase` | seed a message; `await env.auth.hooks.wipeAccountData()` | `message` count 0; `env.db` still usable (`read` succeeds) |
 
 `AppEnvironment` gains an internal convenience `init(testing: Bool, databaseDirectory: URL?)` (nil → the default behaviour) for the second test; the public `init(testing:)` forwards `nil`.
@@ -1337,7 +1337,7 @@ Package tests run with `cd Packages/MailCore && swift test` (Linux + macOS). App
 4. For every scope × unreadOnly, `EXPLAIN QUERY PLAN` names the intended partial index and the inbox query over a 5,000-message seed completes in < 5 ms median on the simulator (`testExplainQueryPlanUsesIndexes`, `testInboxQueryUnder5msWith5000Messages`).
 5. Read→unread on the same thread produces zero outbox rows; archive→read produces one merged row; an inFlight op is never merged into; a failed modify op is never deleted by `retryLater`; `rearmFailedModifies` leaves at most one pending op per thread (`RepositoryTests`).
 6. A metadata re-write or body store while a mark-read op is pending leaves the thread read (`testUpsertRecomputesEWithPendingOp`).
-7. `AppEnvironment(testing: true)` opens a temporary WAL pool synchronously; production launch step 1 performs exactly one `DatabasePool` open + migrate + one `syncState` read (code review of `AppEnvironment.init`; on-device timing via `log stream --predicate 'subsystem == "de.newtelco.minimail"'` shows `coldStartToList` unchanged within noise versus module 01).
+7. `AppEnvironment(testing: true)` opens a temporary WAL pool synchronously; production launch step 1 performs exactly one `DatabasePool` open + migrate + one `syncState` read (code review of `AppEnvironment.init`; on-device timing via `log stream --predicate 'subsystem == "com.minimail"'` shows `coldStartToList` unchanged within noise versus module 01).
 8. `auth.hooks.wipeAccountData` empties every table and the pool remains usable (`testWipeAccountDataResetsDatabase`); manual device step: Settings → Sign out → sign in again → inbox fills from an empty cache.
 9. No file under `minimail/Store` imports `AppAuth`, `WebKit`, `Security` or `SwiftSoup`; `INSERT/UPDATE/DELETE` appear only in `*Repository.swift` and `Database.swift` (`reset`); UI `SELECT`s only in `Queries.swift` (grep: `grep -lE "INSERT|UPDATE|DELETE" minimail/Store/*.swift` lists only repositories + `Database.swift`).
 

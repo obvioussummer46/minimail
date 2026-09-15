@@ -68,7 +68,7 @@ What this module reads from others (complete list, no other symbol is touched):
 | `minimailTests/Settings/SettingsViewsTests.swift` | new | `HexColor`, `SignaturePreviewDocument`, `SignatureSummary`, `ThemeChoice.displayName`, `SettingsStore.binding`, hosting smoke tests, placeholder removal (§7.3) |
 | `minimailTests/Inbox/InboxViewsTests.swift` | modify | one line of `testPlaceholderSignatures`: host `SettingsScreen()` with the three environment values injected (§7.4) |
 
-No `Packages/MailCore` file is added or edited: this module ships no pure package algorithm (`SignatureSanitizer` is 08's, `ComposeStyle` is 01's). No `project.yml` change (the app target globs `minimail/`, the test target globs `minimailTests/` — 01 §5.1). No `Info.plist` key: `UNUserNotificationCenter.requestAuthorization(options: [.badge])` needs none (`UIBackgroundModes` already contains only `fetch`, 01 §5.1) `[ios-platform §6, §7]`. No new asset, no new `UserDefaults` key (the module writes into 01's `de.newtelco.minimail.settings` blob), no migration.
+No `Packages/MailCore` file is added or edited: this module ships no pure package algorithm (`SignatureSanitizer` is 08's, `ComposeStyle` is 01's). No `project.yml` change (the app target globs `minimail/`, the test target globs `minimailTests/` — 01 §5.1). No `Info.plist` key: `UNUserNotificationCenter.requestAuthorization(options: [.badge])` needs none (`UIBackgroundModes` already contains only `fetch`, 01 §5.1) `[ios-platform §6, §7]`. No new asset, no new `UserDefaults` key (the module writes into 01's `com.minimail.settings` blob), no migration.
 
 `make lint` constraints for the four new source files:
 
@@ -709,14 +709,14 @@ No alert, no modal, no blocking overlay anywhere in this module (architecture §
 
 ### 5.1 `Settings` fields this module writes
 
-No new `UserDefaults` key. The single key is 01's `de.newtelco.minimail.settings`; a blob after the owner has set a Verdana 15 px dark-blue style, a signature and the badge looks exactly like this (`.sortedKeys`, one line on disk — wrapped here for reading):
+No new `UserDefaults` key. The single key is 01's `com.minimail.settings`; a blob after the owner has set a Verdana 15 px dark-blue style, a signature and the badge looks exactly like this (`.sortedKeys`, one line on disk — wrapped here for reading):
 
 ```json
 {"composeStyle":{"colorHex":"#0b5394","family":"verdana","sizePx":15},
- "inboxPageSize":100,"lastSignedInEmail":"max.mustermann@newtelco.de","loadRemoteImages":false,
+ "inboxPageSize":100,"lastSignedInEmail":"max.mustermann@example.com","loadRemoteImages":false,
  "markReadOnOpen":true,"schemaVersion":1,
  "signatureEnabled":true,
- "signatureHTML":"<div dir=\"ltr\">Max Mustermann<br>NewTelco GmbH<br><a href=\"https://www.newtelco.de\">newtelco.de</a></div>",
+ "signatureHTML":"<div dir=\"ltr\">Max Mustermann<br>Example GmbH<br><a href=\"https://www.example.com\">example.com</a></div>",
  "showBadge":true,"themeChoice":"dark"}
 ```
 
@@ -1125,7 +1125,7 @@ All four files are **app tests** (XCTest on the simulator, `make test-app` / `ma
 
 ```swift
 var env: AppEnvironment!               // AppEnvironment(testing: true): temporary pool (06), offline stub (05 D8),
-                                       // auth .signedOut, isolated UserDefaults suite "de.newtelco.minimail.testing"
+                                       // auth .signedOut, isolated UserDefaults suite "com.minimail.testing"
 let seedNow: Int64 = 1_757_500_000_000                  // 2025-09-10 10:26:40 UTC
 
 override func setUp() async throws {
@@ -1137,9 +1137,9 @@ override func tearDown() async throws { env = nil }
 func waitUntil(_ timeout: TimeInterval = 2, _ cond: () -> Bool) async
 
 /// Seeds the syncState rows the Advanced section reads.
-func seedSyncState(email: String? = "max.mustermann@newtelco.de", name: String? = "Max Mustermann",
+func seedSyncState(email: String? = "max.mustermann@example.com", name: String? = "Max Mustermann",
                    historyId: String? = "1234530", deltaAtMs: Int64? = seedNow,
-                   signature: String? = "<div dir=\"ltr\">Max Mustermann<br>NewTelco</div>") async throws
+                   signature: String? = "<div dir=\"ltr\">Max Mustermann<br>Example</div>") async throws
 ```
 
 **Stub** (in `SettingsModelTests.swift`, used by both model files):
@@ -1164,7 +1164,7 @@ No fixture file is added. The HTML samples are inline string literals listed in 
 
 | Test function | Setup | Assertions |
 |---|---|---|
-| `testLoadReadsSyncStateAndOutboxCounts` | `seedSyncState()`; one failed send + one pending modify written through `OutboxRepository.enqueueSend`/`fail` and `enqueueModify` on a seeded thread; `model = SettingsModel(env: env, badge: stub)` | after `await model.load()`: `info.accountEmail == "max.mustermann@newtelco.de"`, `info.displayName == "Max Mustermann"`, `info.historyId == "1234530"`, `info.lastDeltaSyncAtMs == seedNow`, `info.hasGmailSignature == true`, `info.pendingOps == 1`, `info.failedSends == 1`; `try InvariantChecks.assertAll(env.db)` |
+| `testLoadReadsSyncStateAndOutboxCounts` | `seedSyncState()`; one failed send + one pending modify written through `OutboxRepository.enqueueSend`/`fail` and `enqueueModify` on a seeded thread; `model = SettingsModel(env: env, badge: stub)` | after `await model.load()`: `info.accountEmail == "max.mustermann@example.com"`, `info.displayName == "Max Mustermann"`, `info.historyId == "1234530"`, `info.lastDeltaSyncAtMs == seedNow`, `info.hasGmailSignature == true`, `info.pendingOps == 1`, `info.failedSends == 1`; `try InvariantChecks.assertAll(env.db)` |
 | `testLoadWithEmptyDatabase` | no seed | `info == .empty`; `accountEmailLine == "—"`; `lastSyncLine == "Never"`; `info.hasGmailSignature == false` |
 | `testLoadIgnoresBlankSignature` | `seedSyncState(signature: "   ")` | `info.hasGmailSignature == false` |
 | `testBadgeToggleOnGranted` | `stub.grantResult = true` | `await model.setBadgeEnabled(true)`; `stub.requests == 1`; `env.settings.snapshot.showBadge == true`; `model.badgeState == .idle` |
@@ -1198,7 +1198,7 @@ func makeModel() -> SignatureEditorModel {
 |---|---|---|
 | `testLoadCopiesSettings` | `env.settings.update { $0.signatureHTML = "<div>Max</div>" }` | after `load()`: `html == "<div>Max</div>"`; `isDirty == false`; `canSave == false`; `previewDocument.contains("Nothing to preview")` |
 | `testPreviewSanitizes` | `html = "<div>Max<script>alert(1)</script></div>"` | after `await refreshPreview()`: `sanitized!.contains("<script") == false`; `sanitized!.contains("Max")`; `error == nil`; `previewDocument.contains(sanitized!)` |
-| `testPreviewKeepsHTTPSImage` | `html = "<img src=\"https://www.newtelco.de/logo.png\" alt=\"NewTelco\">"` | `sanitized!.contains("https://www.newtelco.de/logo.png")` (08 §4.5 keeps `https:` in signatures); `warning == nil` |
+| `testPreviewKeepsHTTPSImage` | `html = "<img src=\"https://www.example.com/logo.png\" alt=\"Example\">"` | `sanitized!.contains("https://www.example.com/logo.png")` (08 §4.5 keeps `https:` in signatures); `warning == nil` |
 | `testDataImageWarning` | `html = "<img src=\"data:image/png;base64,iVBORw0KGgo=\">"` | `warning == SettingsStrings.dataImageWarning`; `error == nil`; `canSave == true` (the warning does not block) |
 | `testWarningClearsWhenImageRemoved` | as above, then `html = "<div>Max</div>"`; `await refreshPreview()` | `warning == nil` |
 | `testOversizeBlocksSave` | `html = String(repeating: "a", count: SignatureEditorModel.maxBytes + 1)` | after `refreshPreview()`: `error == SettingsStrings.signatureTooLarge`; `sanitized == nil`; `canSave == false`; no sanitize attempt (asserted by the call returning in < 50 ms) |
@@ -1226,7 +1226,7 @@ func makeModel() -> SignatureEditorModel {
 | `testSignaturePreviewDocumentShape` | `render(signatureHTML: "<div>Max</div>", light: L, dark: D, forcedScheme: "dark")` | starts with `"<!doctype html><html data-theme=\"dark\">"`; contains `SignaturePreviewDocument.csp`; contains `"<body class=\"mm-plain\"><div class=\"mm-body\"><div>Max</div></div></body>"`; contains `ThreadDocument.css(light: L, dark: D)`; does **not** contain `"https:"` inside the CSP meta |
 | `testSignaturePreviewDocumentNoForcedScheme` | `forcedScheme: nil` | starts with `"<!doctype html><html><head>"` |
 | `testSignaturePreviewDocumentEmpty` | `signatureHTML: "   "` | contains `"Nothing to preview"` |
-| `testSignatureSummary` | — | `SignatureSummary.line("") == "Not set"`; `line("<div>Max Mustermann<br>NewTelco GmbH</div>")` == `"Max Mustermann NewTelco GmbH"`; a 60-character text is cut to 40 characters + `"…"`; `line("<img src=\"https://x/y.png\">") == "HTML signature"` |
+| `testSignatureSummary` | — | `SignatureSummary.line("") == "Not set"`; `line("<div>Max Mustermann<br>Example GmbH</div>")` == `"Max Mustermann Example GmbH"`; a 60-character text is cut to 40 characters + `"…"`; `line("<img src=\"https://x/y.png\">") == "HTML signature"` |
 | `testThemeChoiceDisplayNames` | — | `ThemeChoice.system.displayName == "System"`, `.light == "Light"`, `.dark == "Dark"`; `ThemeChoice.allCases.count == 3` |
 | `testSettingsStoreBindingWritesThrough` | `let b = env.settings.binding(\.markReadOnOpen)` | `b.wrappedValue == true`; `b.wrappedValue = false`; `env.settings.snapshot.markReadOnOpen == false`; the value survives a fresh `SettingsStore(defaults: env.defaults)` |
 | `testComposeStyleBindingNormalises` | `env.settings.binding(\.composeStyle.sizePx).wrappedValue = 99` | `env.settings.snapshot.composeStyle.sizePx == 18` (clamped by `ComposeStyle`'s `didSet` through `normalized()`) |

@@ -795,7 +795,7 @@ With `random = 0.5` the jitter factor is exactly 1.0, so transient delays are 1,
 | same | `testFIFO` | max 1; three ops started in order with a gate | completion order `[0, 1, 2]` |
 | `minimailTests/Gmail/RequestLogTests.swift` | `testRingBufferCapacity` | record 105 entries with paths `"p0"…"p104"` | `entries().count == 100`; `entries().first?.path == "p5"`; `entries().last?.path == "p104"` |
 | same | `testSnapshotFormat` | one entry `GET profile?prettyPrint=false 200 87` | `snapshot()[0].hasSuffix(" GET profile?prettyPrint=false 200 87ms")`; prefix matches `^\d{2}:\d{2}:\d{2}\.\d{3} ` |
-| `minimailTests/Gmail/GmailClientTests.swift` | `testGetProfileURLAndHeaders` | route GET `/gmail/v1/users/me/profile` → `ok("profile.json")` | result `.emailAddress == "user@newtelco.de"`; request 0 `url.absoluteString == "https://gmail.googleapis.com/gmail/v1/users/me/profile?prettyPrint=false"`; `headers["Authorization"] == "Bearer tok1"`; `headers["Accept"] == "application/json"`; `body == nil` |
+| `minimailTests/Gmail/GmailClientTests.swift` | `testGetProfileURLAndHeaders` | route GET `/gmail/v1/users/me/profile` → `ok("profile.json")` | result `.emailAddress == "user@example.com"`; request 0 `url.absoluteString == "https://gmail.googleapis.com/gmail/v1/users/me/profile?prettyPrint=false"`; `headers["Authorization"] == "Bearer tok1"`; `headers["Accept"] == "application/json"`; `body == nil` |
 | same | `testListMessagesRepeatedParamsAndEncoding` | `listMessages(labelIds: ["INBOX","UNREAD"], q: "rfc822msgid:<a+b@x.de>", maxResults: 50, pageToken: "p2")` → `ok("messages.list.inbox.1.json")` | `query == "labelIds=INBOX&labelIds=UNREAD&q=rfc822msgid:%3Ca%2Bb%40x.de%3E&maxResults=50&pageToken=p2&prettyPrint=false"`; result `.nextPageToken` equals the fixture's |
 | same | `testListMessagesOmitsNil` | `labelIds: [], q: nil, pageToken: nil, maxResults: 1` | `query == "maxResults=1&prettyPrint=false"` |
 | same | `testGetMessageMetadataURL` | `getMessage(id: "m1", format: .metadata, fields: nil)` → `ok("messages.get.metadata.plain.json")` | `query == "format=metadata&" + MH + "&prettyPrint=false"` (MH from §5.1) |
@@ -879,7 +879,7 @@ Each task is 100–350 lines of code; T05.3 and T05.5 are the largest.
 8. Batches are chunked at 25, sent sequentially, matched by `Content-ID`, retried per part for at most 3 rounds, and a missing part id yields `.batchMalformed` for that id only (`testBatch*`).
 9. No more than 2 HTTP requests are ever in flight for one `GmailClient` (`testLimiterCapsConcurrencyAtTwo`, `testLimiterSharedAcrossBatchAndSingle`).
 10. `AppEnvironment(testing: true)` constructs `GmailClient` with no network access; a test-host launch without stubs answers `.offline` for every request (`testOfflineURLProtocol`, `testAppEnvironmentWiring`).
-11. Manual device step (module 14 checklist, after 04 and 07 land): with a signed-in account, Settings → Advanced → Recent requests shows lines of the §5.5 form, none containing `ya29` (no token leakage). Verify: `log stream --predicate 'subsystem == "de.newtelco.minimail" AND category == "net"'` while pulling to refresh shows `GET history?startHistoryId=… 200 <ms>ms`.
+11. Manual device step (module 14 checklist, after 04 and 07 land): with a signed-in account, Settings → Advanced → Recent requests shows lines of the §5.5 form, none containing `ya29` (no token leakage). Verify: `log stream --predicate 'subsystem == "com.minimail" AND category == "net"'` while pulling to refresh shows `GET history?startHistoryId=… 200 <ms>ms`.
 
 ---
 

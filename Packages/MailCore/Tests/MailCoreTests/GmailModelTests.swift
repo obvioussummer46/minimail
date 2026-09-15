@@ -33,9 +33,9 @@ final class GmailDTOTests: XCTestCase {
     func testProfileAndLabels() throws {
         let profile = try JSONDecoder().decode(
             GmailProfile.self,
-            from: Data(#"{"emailAddress":"max@newtelco.de","historyId":"98765","messagesTotal":10}"#.utf8)
+            from: Data(#"{"emailAddress":"max@example.com","historyId":"98765","messagesTotal":10}"#.utf8)
         )
-        XCTAssertEqual(profile.emailAddress, "max@newtelco.de")
+        XCTAssertEqual(profile.emailAddress, "max@example.com")
         XCTAssertEqual(profile.historyId, 98765)
 
         let labels = try JSONDecoder().decode(
@@ -155,7 +155,7 @@ final class MessageParserTests: XCTestCase {
                 mimeType: "multipart/alternative",
                 headers: [
                     header("From", "=?UTF-8?B?QWxpY2UgTcO8bGxlcg==?= <alice@example.com>"),
-                    header("To", "Max <max@newtelco.de>, bob@example.com"),
+                    header("To", "Max <max@example.com>, bob@example.com"),
                     header("Cc", "carol@partner.example"),
                     header("Reply-To", "sales@example.com"),
                     header("Subject", "Re:   Angebot\r\n für die Erweiterung"),

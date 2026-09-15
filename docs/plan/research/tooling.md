@@ -75,7 +75,7 @@ name: minimail
 
 options:
   minimumXcodeGenVersion: 2.46.0
-  bundleIdPrefix: de.newtelco
+  bundleIdPrefix: com
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "26.6"
@@ -148,7 +148,7 @@ targets:
         product: GRDB
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimail
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimail
         PRODUCT_NAME: minimail
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -171,14 +171,14 @@ targets:
         # BGAppRefreshTask (PLAN.md §Sync 5). Array of reverse-DNS task ids.
         # https://developer.apple.com/documentation/bundleresources/information-property-list/bgtaskschedulerpermittedidentifiers
         BGTaskSchedulerPermittedIdentifiers:
-          - de.newtelco.minimail.refresh
+          - com.minimail.refresh
         UIBackgroundModes:
           - fetch
         # OAuth redirect scheme (PLAN.md: com.googleusercontent.apps.<id>:/oauth2redirect)
         # https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundleurltypes
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: de.newtelco.minimail.oauth
+            CFBundleURLName: com.minimail.oauth
             CFBundleURLSchemes:
               - com.googleusercontent.apps.REPLACE_WITH_GOOGLE_CLIENT_ID
     entitlements:
@@ -204,7 +204,7 @@ targets:
         product: SnapshotTesting
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimailTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimailTests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/minimail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/minimail
         BUNDLE_LOADER: $(TEST_HOST)
 
@@ -217,7 +217,7 @@ targets:
       - target: minimail
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimailUITests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimailUITests
         TEST_TARGET_NAME: minimail
 ```
 
@@ -344,7 +344,7 @@ Xcode 16+ replaced the legacy `get object --format json` (now needs `--legacy`) 
 UDID=$(xcrun simctl list devices available --json | jq -r '[.devices[][] | select(.name=="iPhone 17")][0].udid')
 xcrun simctl boot "$UDID" || true
 xcrun simctl install "$UDID" .build/DerivedData/Build/Products/Debug-iphonesimulator/minimail.app
-xcrun simctl launch "$UDID" de.newtelco.minimail
+xcrun simctl launch "$UDID" com.minimail
 xcrun simctl io "$UDID" screenshot .build/shot.png
 xcrun simctl shutdown "$UDID"
 ```
@@ -653,7 +653,7 @@ For a mail client the owner uses daily this is a non-starter (weekly re-install,
 Manual, owner-only steps (cannot be scripted):
 
 1. Enroll: **$99 USD/year**, Apple Account with 2FA, legal name ([enroll page](https://developer.apple.com/programs/enroll/)). Joining "creates an App Store Connect account for you and you can start uploading builds"; TestFlight and registered-device distribution require membership ([Distributing your app for beta testing and releases](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases)).
-2. In App Store Connect: create the **app record** for bundle id `de.newtelco.minimail` (required before first upload — same Apple doc, "Create an app record").
+2. In App Store Connect: create the **app record** for bundle id `com.minimail` (required before first upload — same Apple doc, "Create an app record").
 3. Create an **App Store Connect API key** (Team key, role App Manager or Admin) and download the `.p8` once. Store `AuthKey_<KEYID>.p8`, key ID and issuer ID as CI secrets. (UI location in ASC: Users and Access → Integrations — **UNVERIFIED** exact menu names.)
 4. On the owner's iPhone: install the TestFlight app; the owner adds themself as an internal tester.
 5. Put `DEVELOPMENT_TEAM = <TeamID>` in `Config/Signing.xcconfig`.

@@ -1,6 +1,6 @@
 # minimail
 
-Minimal, native, fast Gmail client for iPhone. Work account: Google Workspace (newtelco.de).
+Minimal, native, fast Gmail client for iPhone. Work account: Google Workspace (example.com).
 
 **The plan lives in [`docs/plan/README.md`](docs/plan/README.md).** Start there.
 
@@ -49,9 +49,9 @@ Three dependencies total. Everything else is hand-written.
 121 tasks. Each names its files, its definition of done and its verification command.
 
 ## Owner to-do (manual, cannot be scripted)
-- [ ] Google Cloud project inside the newtelco.de org, OAuth consent type **Internal**
+- [ ] Google Cloud project inside the example.com org, OAuth consent type **Internal**
 - [ ] Enable Gmail API
-- [ ] iOS OAuth client for bundle id `de.newtelco.minimail`
+- [ ] iOS OAuth client for bundle id `com.minimail`
 - [ ] Workspace admin: trust the client (else sign-in fails with `admin_policy_enforced`)
 - [ ] Apple Developer account, register the bundle id
 - [ ] A Mac or macOS runner with Xcode 26.x

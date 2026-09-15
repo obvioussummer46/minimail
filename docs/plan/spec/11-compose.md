@@ -636,7 +636,7 @@ This module creates no table, writes no `UserDefaults` key, touches no file cach
   "cc": [{"addr": "carol@partner.example"}],
   "includeSignature": true,
   "inReplyTo": "<CAF=abc123@mail.gmail.com>",
-  "messageID": "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@newtelco.de>",
+  "messageID": "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@example.com>",
   "mode": "replyAll",
   "originalMessageId": "18c2f1a9b3d4e5f6",
   "quoteSource": {
@@ -645,7 +645,7 @@ This module creates no table, writes no `UserDefaults` key, touches no file cach
     "html": "<div dir=\"ltr\">Hallo Max,<div><br></div><div>ist das Angebot noch aktuell?</div></div>",
     "subject": "Angebot",
     "text": "Hallo Max,\n\nist das Angebot noch aktuell?",
-    "to": [{"addr": "max.mustermann@newtelco.de", "name": "Max"}, {"addr": "bob@example.com", "name": "Bob"}]
+    "to": [{"addr": "max.mustermann@example.com", "name": "Max"}, {"addr": "bob@example.com", "name": "Bob"}]
   },
   "references": ["<CAF=root@mail.gmail.com>", "<CAF=abc123@mail.gmail.com>"],
   "subject": "Re: Angebot",
@@ -889,10 +889,10 @@ let fixedUUID = UUID(uuidString: "3F2504E0-4F89-41D3-9A0C-0305E82C3301")!
 override func setUp() async throws {
     env = AppEnvironment(testing: true)
     try await env.db.write { db in
-        try SyncStateRepository.set(db, .accountEmail, "max.mustermann@newtelco.de")
+        try SyncStateRepository.set(db, .accountEmail, "max.mustermann@example.com")
         try SyncStateRepository.set(db, .displayName, "Max Mustermann")
         try SyncStateRepository.set(db, .selfAddresses,
-            #"["m.mustermann@newtelco.de","max.mustermann@newtelco.de"]"#)
+            #"["m.mustermann@example.com","max.mustermann@example.com"]"#)
     }
 }
 override func tearDown() async throws { model?.stop(); model = nil; env = nil }
@@ -933,8 +933,8 @@ func waitUntil(_ timeout: TimeInterval = 2, _ cond: () -> Bool) async
 |---|---|---|
 | `testReplyAllPrefill` | `seedOriginal()`; `model = ComposeModel(env:, input: .fromMessage(mode: .replyAll, threadId: "t1", messageId: "m1"), uuid: { fixedUUID })`; `await model.makeDraft()` | `phase == .ready`; `toText == "Alice <alice@example.com>, Bob <bob@example.com>"`; `ccText == "carol@partner.example"`; `subject == "Re: Angebot"`; `model.title == "Reply All"`; `attachments.isEmpty`; `quoteReady`; `canSend` |
 | `testReplyAllThreadingHeaders` | as above | `makeJob()!.inReplyTo == "<CAF=abc123@mail.gmail.com>"`; `makeJob()!.references == ["<CAF=root@mail.gmail.com>", "<CAF=abc123@mail.gmail.com>"]`; `makeJob()!.threadId == "t1"`; `makeJob()!.originalMessageId == "m1"` |
-| `testMessageIDIsFrozenAndUsesAccountDomain` | as above | `makeJob()!.messageID == "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@newtelco.de>"`; after `model.body = "x"` a second `makeJob()!.messageID` is the same string |
-| `testSelfReplyKeepsOriginalRecipients` | original with `from: Mailbox(name: "Max", addr: "max.mustermann@newtelco.de")`, `to: [alice, bob]`, `cc: [carol]`, `replyTo: [list@example.com]` (seeded through `parsed(…)`) | `toText == "Alice <alice@example.com>, Bob <bob@example.com>"`; `ccText == "carol@partner.example"` (Reply-To ignored — `[mime-rfc §8.1]` rows 9/10) |
+| `testMessageIDIsFrozenAndUsesAccountDomain` | as above | `makeJob()!.messageID == "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@example.com>"`; after `model.body = "x"` a second `makeJob()!.messageID` is the same string |
+| `testSelfReplyKeepsOriginalRecipients` | original with `from: Mailbox(name: "Max", addr: "max.mustermann@example.com")`, `to: [alice, bob]`, `cc: [carol]`, `replyTo: [list@example.com]` (seeded through `parsed(…)`) | `toText == "Alice <alice@example.com>, Bob <bob@example.com>"`; `ccText == "carol@partner.example"` (Reply-To ignored — `[mime-rfc §8.1]` rows 9/10) |
 | `testSubjectPrefixNotDoubled` | original subject `"Re: Angebot"` | reply → `subject == "Re: Angebot"`; a second model with `.forward` → `subject == "Fwd: Re: Angebot"` |
 | `testForwardPrefill` | `seedOriginal()`; `.fromMessage(mode: .forward, …)` | `toText == ""`; `ccText == ""`; `subject == "Fwd: Angebot"`; `title == "Forward"`; `attachments.map(\.id) == ["2", "3"]`; `attachments[0].included == true`; `attachments[1].isInline == true && attachments[1].included == false`; `makeJob() == nil` (no recipients); `validation == "Add at least one recipient."` |
 | `testForwardKeepsThreadingHeaders` | as above; `model.toText = "bob@example.com"` | `makeJob()!.inReplyTo == "<CAF=abc123@mail.gmail.com>"`; `references` as in `testReplyAllThreadingHeaders`; `threadId == "t1"` (architecture D24) |
@@ -951,12 +951,12 @@ func waitUntil(_ timeout: TimeInterval = 2, _ cond: () -> Bool) async
 | `testAttachmentBudgetBlocksSend` | forward model with two refs of 12_000_000 and 9_000_000 (seeded through `storeBody`); `toText = "bob@example.com"` | `attachmentBytes == 21_000_000`; `canSend == false`; `attachmentFooter == "Attachments are 21 MB — the limit is 20 MB. Turn some off to send."` (exact string built with `Formatters.bytes`); `setAttachment(partId: "3", included: false)` → `canSend == true`, footer `"1 attachment · 12 MB"` |
 | `testAttachmentTogglesReachTheJob` | `seedOriginal()`; forward model; `toText = "bob@example.com"` | `makeJob()!.attachments.map(\.partId) == ["2"]`; `setAttachment(partId: "3", included: true)` → `["2", "3"]`; `setAttachment(partId: "2", included: false)` → `["3"]`; `setAttachment(partId: "99", included: true)` changes nothing |
 | `testIncludeSignatureFollowsSettings` | `env.settings.update { $0.signatureEnabled = false }` **before** creating the model; `seedOriginal()`; reply model; `toText` valid | `includeSignature == false`; `makeJob()!.includeSignature == false`; a second model created after `signatureEnabled = true` → `true` |
-| `testSendEnqueuesOneOutboxRow` | `seedOriginal()`; reply model; `model.body = "Ja, passt."` | `model.send() == true`; `sendFeedbackId == 1`; `isSending == true`; `await waitUntil { (try? env.db.read { try Queries.outboxCounts($0).pending }) == 1 }`; the stored row has `kind == .send`, `transmitState == .notSent`, `rfc822MessageId == "<3F2504E0-…@newtelco.de>"`, and `sendJob` decodes equal to `makeJob()` captured before the call; `try InvariantChecks.assertAll(env.db)` |
+| `testSendEnqueuesOneOutboxRow` | `seedOriginal()`; reply model; `model.body = "Ja, passt."` | `model.send() == true`; `sendFeedbackId == 1`; `isSending == true`; `await waitUntil { (try? env.db.read { try Queries.outboxCounts($0).pending }) == 1 }`; the stored row has `kind == .send`, `transmitState == .notSent`, `rfc822MessageId == "<3F2504E0-…@example.com>"`, and `sendJob` decodes equal to `makeJob()` captured before the call; `try InvariantChecks.assertAll(env.db)` |
 | `testSendRejectedWhenInvalid` | `seedOriginal()`; reply model; `model.toText = ""` | `model.send() == false`; `sendFeedbackId == 0`; after 300 ms `try env.db.read { try Queries.outboxCounts($0).pending } == 0` |
 | `testSecondSendIsIgnored` | as `testSendEnqueuesOneOutboxRow` | `model.send() == true`; `model.send() == false` (`isSending` blocks it); exactly one row |
 | `testFailedSendPrefillFromJob` | build `job` (reply-all, to `[Bob]`, cc `[]`, subject `"Re: Angebot"`, typedText `"Erste Fassung"`, `quoteSource.text "Hallo"`, one attachment ref, `includeSignature: false`); `let id = try await env.db.write { db -> Int64 in let i = try OutboxRepository.enqueueSend(db, job: job, now: seedNow); try OutboxRepository.fail(db, opId: i, error: "Invalid recipient"); return i }`; `model = ComposeModel(env:, input: .failedSend(outboxId: id, job: job))` | **without** calling `makeDraft()`: `phase == .ready`, `toText == "Bob <bob@example.com>"`, `subject == "Re: Angebot"`, `body == "Erste Fassung"`, `quoteReady`, `quotePreview == "Hallo"`, `attachments.count == 1 && attachments[0].included`, `includeSignature == false`, `hasContent == true`, `canSend == true`; `await model.makeDraft()` changes nothing |
 | `testFailedSendResendKeepsIdentityAndDeletesOldRow` | as above; `model.body = "Zweite Fassung"`; `model.toText = "bob@example.com, carol@partner.example"` | `model.send() == true`; `await waitUntil { (try? env.db.read { try OutboxRecord.fetchOne($0, key: id) }) == nil }`; exactly one `outbox` row exists; its `sendJob` has `messageID == job.messageID`, `inReplyTo == job.inReplyTo`, `references == job.references`, `quoteSource == job.quoteSource`, `typedText == "Zweite Fassung"`, `to.count == 2`; `try InvariantChecks.assertAll(env.db)` |
-| `testHasContentRules` | `seedOriginal()`; reply model loaded | `hasContent == false`; `model.body = "  \n "` → `false`; `model.body = "Hi"` → `true`; reset `body = ""`, `model.subject = "Anderes"` → `true`; reset subject, `model.toText += ", dave@newtelco.de"` → `true` |
+| `testHasContentRules` | `seedOriginal()`; reply model loaded | `hasContent == false`; `model.body = "  \n "` → `false`; `model.body = "Hi"` → `true`; reset `body = ""`, `model.subject = "Anderes"` → `true`; reset subject, `model.toText += ", dave@example.com"` → `true` |
 | `testStopCancelsBodyObservation` | seed `m1` without body; reply model; `await model.makeDraft()`; `model.stop()`; then `storeBody` | after 300 ms `model.quoteReady == false` (no tick after `stop`) |
 
 29 tests.
@@ -969,9 +969,9 @@ func waitUntil(_ timeout: TimeInterval = 2, _ cond: () -> Bool) async
 | `testAddressFieldRoundTrip` | list `[Mailbox(name: "Müller, Alice", addr: "a@b.de"), Mailbox(name: nil, addr: "c@d.de"), Mailbox(name: "Bob", addr: "e@f.de")]` | `parse(text(for: list)).mailboxes.map(\.addr) == ["a@b.de", "c@d.de", "e@f.de"]`; `parse(...).mailboxes[0].name == "Müller, Alice"`; `parse(...).invalid.isEmpty` |
 | `testAddressValidationMatrix` | — | `isValidAddrSpec` true for `"a@b.de"`, `"a.b+c@sub.example.co.uk"`, `"user@localhost"`; false for `""`, `"a"`, `"@b.de"`, `"a@"`, `"a@@b.de"`, `"a b@c.de"`, `"a@b..de"`, `"a@.de"`, `"a@de."`, `"<a@b.de>"`, `"a,b@c.de"` |
 | `testParseSplitsAndFlags` | `parse("Alice <a@b.de>, junk, c@d.de")` | `mailboxes.map(\.addr) == ["a@b.de", "c@d.de"]`; `invalid == ["junk"]`; `parse("   ")` → `([], [])` |
-| `testDraftBuilderReplyAll` | `MessageRecord` built inline (from Alice, to `[max, bob]`, cc `[carol]`, subject `"Angebot"`, ids as in §7.1) + `identity = SelfIdentity(primary: Mailbox(name: "Max Mustermann", addr: "max.mustermann@newtelco.de"), allAddresses: ["max.mustermann@newtelco.de", "m.mustermann@newtelco.de"])` | `make(mode: .replyAll, …, uuid: fixedUUID)` returns `to == [alice, bob]`, `cc == [carol]`, `subject == "Re: Angebot"`, `messageID == "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@newtelco.de>"`, `attachments.isEmpty`, `quoteReady == false` (body nil, `bodyState == 0`) |
+| `testDraftBuilderReplyAll` | `MessageRecord` built inline (from Alice, to `[max, bob]`, cc `[carol]`, subject `"Angebot"`, ids as in §7.1) + `identity = SelfIdentity(primary: Mailbox(name: "Max Mustermann", addr: "max.mustermann@example.com"), allAddresses: ["max.mustermann@example.com", "m.mustermann@example.com"])` | `make(mode: .replyAll, …, uuid: fixedUUID)` returns `to == [alice, bob]`, `cc == [carol]`, `subject == "Re: Angebot"`, `messageID == "<3F2504E0-4F89-41D3-9A0C-0305E82C3301@example.com>"`, `attachments.isEmpty`, `quoteReady == false` (body nil, `bodyState == 0`) |
 | `testDraftBuilderForwardAttachments` | same record, `bodyState = 1`, a body row, three `AttachmentRecord`s (two normal, one `isInline`) | `make(mode: .forward, …)` → `to.isEmpty`, `subject == "Fwd: Angebot"`, `attachments.map(\.id) == ["1", "2", "3"]`, `attachments.map(\.included) == [true, true, false]`, `quoteReady == true` |
-| `testDraftBuilderDomain` | — | `domain(ofEmail: "max.mustermann@newtelco.de") == "newtelco.de"`; `domain(ofEmail: "Max@NewTelco.DE") == "newtelco.de"`; `domain(ofEmail: "broken") == ""`; `MessageIDs.generate(domain: "", uuid: fixedUUID)` ends with `"@localhost>"` |
+| `testDraftBuilderDomain` | — | `domain(ofEmail: "max.mustermann@example.com") == "example.com"`; `domain(ofEmail: "Max@example.com") == "example.com"`; `domain(ofEmail: "broken") == ""`; `MessageIDs.generate(domain: "", uuid: fixedUUID)` ends with `"@localhost>"` |
 | `testAttachmentItemSizeLabel` | item with `size: 184_213` | `sizeLabel == Formatters.bytes(184_213)`; `size: 0` → `Formatters.bytes(0)` |
 | `testComposeScreenHostsReplyAll` | `env = AppEnvironment(testing: true)`; seed `m1`/`t1` + body; `let vc = UIHostingController(rootView: ComposeScreen(input: .fromMessage(mode: .replyAll, threadId: "t1", messageId: "m1")).environment(env).environment(env.theme).environment(env.settings))`; frame 390×844; `layoutIfNeeded()`; `RunLoop.main.run(until: Date() + 0.3)` | no crash; `vc.view.subviews.isEmpty == false`; `env.deferredWorkStarted == false` |
 | `testComposeScreenHostsFailedSend` | as above with `.failedSend(outboxId: 1, job: job)` | no crash; `vc.view.subviews.isEmpty == false` |

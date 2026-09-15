@@ -60,7 +60,7 @@ Authorization: Bearer ya29....
 Response (`Profile` **[DISC]**):
 ```json
 {
-  "emailAddress": "user@newtelco.de",
+  "emailAddress": "user@example.com",
   "messagesTotal": 12345,
   "threadsTotal": 6789,
   "historyId": "1234567"
@@ -127,7 +127,7 @@ Response (`Thread` **[DISC]**: `id`, `snippet`, `historyId` "The ID of the last 
         "filename": "",
         "headers": [
           {"name": "From", "value": "Alice <alice@example.com>"},
-          {"name": "To", "value": "user@newtelco.de"},
+          {"name": "To", "value": "user@example.com"},
           {"name": "Subject", "value": "Invoice 42"},
           {"name": "Date", "value": "Thu, 10 Sep 2026 09:12:33 +0200"},
           {"name": "Message-ID", "value": "<CAF=abc123@mail.example.com>"}
@@ -209,7 +209,7 @@ Example `format=full` response (shape per schema; values illustrative):
     "filename": "",
     "headers": [
       {"name": "From", "value": "Alice <alice@example.com>"},
-      {"name": "To", "value": "user@newtelco.de"},
+      {"name": "To", "value": "user@example.com"},
       {"name": "Cc", "value": "bob@example.com"},
       {"name": "Subject", "value": "Invoice 42"},
       {"name": "Date", "value": "Thu, 10 Sep 2026 09:12:33 +0200"},
@@ -511,14 +511,14 @@ Content-Type: application/json
 ```
 `raw` = base64url( RFC 5322 message ). The MIME the builder must emit for a reply-all:
 ```
-From: Your Name <user@newtelco.de>
+From: Your Name <user@example.com>
 To: Alice <alice@example.com>
 Cc: bob@example.com
 Subject: Re: Invoice 42
 In-Reply-To: <CAF=abc123@mail.example.com>
 References: <older-id@example.com> <CAF=abc123@mail.example.com>
 Date: Fri, 11 Sep 2026 10:00:00 +0200
-Message-ID: <7C1E3F2A-...@newtelco.de>
+Message-ID: <7C1E3F2A-...@example.com>
 MIME-Version: 1.0
 Content-Type: multipart/alternative; boundary="mm-alt-1"
 
@@ -549,7 +549,7 @@ Idempotency: **there is no idempotency key**. A timed-out send may have succeede
 
 `SendAs` fields **[DISC]**: `sendAsEmail`, `displayName` ("A name that appears in the "From:" header..."), `replyToAddress`, `signature` — **"An optional HTML signature that is included in messages composed with this alias in the Gmail web UI. This signature is added to new emails only."** —, `isPrimary`, `isDefault`, `treatAsAlias`, `verificationStatus` (`accepted`|`pending`), `smtpMsa`.
 ```json
-{"sendAs":[{"sendAsEmail":"user@newtelco.de","displayName":"Your Name","signature":"<div dir=\"ltr\">Your Name<br>newtelco</div>","isPrimary":true,"isDefault":true}]}
+{"sendAs":[{"sendAsEmail":"user@example.com","displayName":"Your Name","signature":"<div dir=\"ltr\">Your Name<br>example</div>","isPrimary":true,"isDefault":true}]}
 ```
 Is it useful? **Yes, as a one-tap "Import Gmail signature" in Settings and as the source of `displayName` for the `From:` header** — the API does not append the signature for you (it is a web-UI feature: "included in messages composed ... in the Gmail web UI"), so minimail must embed it in the HTML body itself, which PLAN.md already does. Signature HTML from Gmail may reference hosted images (`https://ci3.googleusercontent.com/...` proxied URLs or `cid:`); keep as-is (remote image), do not inline. Writing the signature back requires `gmail.settings.basic` (sensitive scope) — out of scope; keep the local copy authoritative.
 
@@ -569,8 +569,8 @@ Scope needed by every stage-1 call (all **[DISC]** scope lists above): **`https:
 
 Classification **[SNIPPET: scopes page + support.google.com/cloud/answer/13464325]**: `gmail.modify`, `gmail.readonly`, `gmail.compose`, `gmail.insert`, `gmail.metadata`, `gmail.settings.basic`, `gmail.settings.sharing`, `https://mail.google.com/` are **Restricted**; `gmail.send` is **Sensitive**; `gmail.labels` is **Non-sensitive**.
 
-What "restricted" means for an **Internal** OAuth app in the newtelco.de org **[SNIPPET: developers.google.com/workspace/guides/configure-oauth-consent, .../production-readiness/restricted-scope-verification, support.google.com/cloud/answer/13464321]**:
-- "For apps used only internally by your Google Workspace organization, scopes aren't listed on the consent screen and use of restricted or sensitive scopes doesn't require further review by Google." Exceptions to verification **and** to the annual CASA security assessment include "apps that are configured to work only with internal Google accounts within your organization". ⇒ **No verification, no security assessment, no 100-test-user cap, no 7-day refresh-token expiry** (the 7-day expiry applies to *External* apps in *Testing* status) — as long as User type = **Internal** (requires the GCP project to belong to the newtelco.de Workspace organization).
+What "restricted" means for an **Internal** OAuth app in the example.com org **[SNIPPET: developers.google.com/workspace/guides/configure-oauth-consent, .../production-readiness/restricted-scope-verification, support.google.com/cloud/answer/13464321]**:
+- "For apps used only internally by your Google Workspace organization, scopes aren't listed on the consent screen and use of restricted or sensitive scopes doesn't require further review by Google." Exceptions to verification **and** to the annual CASA security assessment include "apps that are configured to work only with internal Google accounts within your organization". ⇒ **No verification, no security assessment, no 100-test-user cap, no 7-day refresh-token expiry** (the 7-day expiry applies to *External* apps in *Testing* status) — as long as User type = **Internal** (requires the GCP project to belong to the example.com Workspace organization).
 - Admin side **[SNIPPET: support.google.com/a/answer/7281227, 9352843]**: Admin console → Security → Access and data control → **API controls** → *Manage Third-Party App Access*. Apps get `Trusted` / `Limited` / `Blocked`. `Limited` = "access to scopes only from Google services which are not restricted" — Gmail scopes **are** restricted, so a `Limited` default would block minimail. Either the admin marks the client ID **Trusted**, or enables **"Trust internal, domain-owned apps"** under Internal App Settings ("allows API access for all internal apps"). Error seen when blocked: `Error 400: admin_policy_enforced` **[SNIPPET]**. PLAN.md's checklist item covers this; make it explicit: *either* per-app Trusted *or* the internal-apps checkbox.
 
 ## OAuth 2.0 for iOS (AppAuth-iOS)
@@ -583,7 +583,7 @@ Endpoints **[OIDC — verified]**:
 - `code_challenge_methods_supported`: `["plain","S256"]` → use **S256**; `grant_types_supported` includes `authorization_code`, `refresh_token`; `response_modes_supported`: `query`, `fragment`, `form_post`; `token_endpoint_auth_methods_supported`: `client_secret_post`, `client_secret_basic` (irrelevant — iOS clients have no secret).
 
 Client type and redirect **[SNIPPET: native-app doc; VERIFIED via AppAuth-iOS Examples/README-Google.md (raw GitHub)]**:
-- Create an OAuth client of type **iOS** with the app's Bundle ID (`de.newtelco.minimail`). Client ID format: `IDENTIFIER.apps.googleusercontent.com`. "Google's iOS clients do not have a secret" — `clientSecret: nil` in AppAuth.
+- Create an OAuth client of type **iOS** with the app's Bundle ID (`com.minimail`). Client ID format: `IDENTIFIER.apps.googleusercontent.com`. "Google's iOS clients do not have a secret" — `clientSecret: nil` in AppAuth.
 - Redirect URI = reversed client ID as custom scheme + path: `com.googleusercontent.apps.IDENTIFIER:/oauth2redirect/google` (AppAuth README) / `com.googleusercontent.apps.IDENTIFIER:/oauth2redirect` (Google doc); **single slash after the colon**. The Cloud console shows the scheme as "iOS URL scheme". Register the scheme in `Info.plist` → `CFBundleURLTypes[0].CFBundleURLSchemes = ["com.googleusercontent.apps.IDENTIFIER"]`. (Headless build: put it in the `Info.plist` / `INFOPLIST_KEY_CFBundleURLTypes` via project.yml or the pbxproj — no Xcode GUI needed.)
 - Universal Links / `https` redirects are optional; custom scheme is the documented default for iOS.
 
@@ -597,8 +597,8 @@ https://accounts.google.com/o/oauth2/v2/auth?
   &code_challenge=<base64url(SHA256(code_verifier))>
   &code_challenge_method=S256
   &state=<random>
-  &login_hint=user@newtelco.de        (optional; skips account picker)
-  &hd=newtelco.de                     (optional; UNVERIFIED for native flow, harmless)
+  &login_hint=user@example.com        (optional; skips account picker)
+  &hd=example.com                     (optional; UNVERIFIED for native flow, harmless)
 ```
 PKCE **[SNIPPET: RFC 7636 / Google doc]**: `code_verifier` 43–128 chars from `[A-Za-z0-9-._~]`; AppAuth generates it automatically ("everything will be protected with PKCE" — AppAuth README **[verified]**). `access_type=offline` / `prompt=consent` are **web-server-flow** params; native (installed) clients always receive a refresh token on the first authorization — UNVERIFIED as documented text but consistent with AppAuth behaviour; if `refresh_token` is missing, add `prompt=consent`.
 

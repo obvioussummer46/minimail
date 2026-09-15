@@ -8,7 +8,7 @@ nonisolated final class LogAndFormattersTests: XCTestCase {
 
     @MainActor
     func testLoggerCategoriesExist() {
-        XCTAssertEqual(Log.subsystem, "de.newtelco.minimail")
+        XCTAssertEqual(Log.subsystem, "com.minimail")
         let loggers = [Log.auth, Log.net, Log.sync, Log.outbox, Log.db, Log.web, Log.ui, Log.bg]
         XCTAssertEqual(loggers.count, 8)
         XCTAssertEqual(Log.Interval.allCases.count, 8)

@@ -179,7 +179,7 @@ import os
 
 /// Logger categories and signpost intervals. `nonisolated` so actors (04, 05, 07) and reader closures (06) can log.
 nonisolated enum Log {
-    static let subsystem = "de.newtelco.minimail"
+    static let subsystem = "com.minimail"
     static let auth   = Logger(subsystem: subsystem, category: "auth")
     static let net    = Logger(subsystem: subsystem, category: "net")
     static let sync   = Logger(subsystem: subsystem, category: "sync")
@@ -343,7 +343,7 @@ import Foundation
 import MailCore
 
 @Observable final class SettingsStore {
-    static let key = "de.newtelco.minimail.settings"
+    static let key = "com.minimail.settings"
     private(set) var settings: Settings
     /// One `UserDefaults.data(forKey:)` + JSON decode. Missing key → `Settings()`. Decode failure → `Settings()` + `Log.ui.error` (data length logged, never content).
     init(defaults: UserDefaults = .standard)
@@ -369,7 +369,7 @@ import SwiftUI
 @Observable final class AppEnvironment {
     /// `true` when `MINIMAIL_TESTING=1` is in the process environment (scheme sets it for every `xcodebuild test` host launch) or when passed explicitly.
     let isTesting: Bool
-    /// `.standard`, or the suite "de.newtelco.minimail.testing" wiped at init when `isTesting`.
+    /// `.standard`, or the suite "com.minimail.testing" wiped at init when `isTesting`.
     let defaults: UserDefaults
     let settings: SettingsStore
     let theme: ThemeStore
@@ -581,7 +581,7 @@ No `synchronize()` call (deprecated; `UserDefaults` writes through). Concurrency
 `init(testing:)` steps (this module's content; insertion points for later modules are comments in the file):
 1. `isTesting = testing`.
 2. `coldStart = Log.begin(.coldStartToList)`.
-3. `defaults`: if `isTesting`, `let d = UserDefaults(suiteName: "de.newtelco.minimail.testing")!` — `suiteName` init returns nil only for the global domain, so the force unwrap is safe; then `d.removePersistentDomain(forName: "de.newtelco.minimail.testing")`; else `.standard`.
+3. `defaults`: if `isTesting`, `let d = UserDefaults(suiteName: "com.minimail.testing")!` — `suiteName` init returns nil only for the global domain, so the force unwrap is safe; then `d.removePersistentDomain(forName: "com.minimail.testing")`; else `.standard`.
 4. `settings = SettingsStore(defaults: defaults)`.
 5. `// [06] db = try! Database.open(...)  /  openInMemory() when isTesting` — comment only in this module.
 6. `// [04] keychain existence, accountEmail, AuthStore` — comment only.
@@ -621,7 +621,7 @@ Performance constraint: step 1 total < 15 ms on device (§12.2). In this module 
 name: minimail
 options:
   minimumXcodeGenVersion: 2.46.0
-  bundleIdPrefix: de.newtelco
+  bundleIdPrefix: com
   deploymentTarget: { iOS: "17.0" }
   xcodeVersion: "26.6"
   createIntermediateGroups: true
@@ -668,7 +668,7 @@ targets:
       - { package: MailCore, product: MailHTML }
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimail
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimail
         PRODUCT_NAME: minimail
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -683,12 +683,12 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest: { UIApplicationSupportsMultipleScenes: false }
         ITSAppUsesNonExemptEncryption: false
-        BGTaskSchedulerPermittedIdentifiers: [de.newtelco.minimail.refresh]
+        BGTaskSchedulerPermittedIdentifiers: [com.minimail.refresh]
         UIBackgroundModes: [fetch]
         GoogleClientID: $(GOOGLE_CLIENT_ID)                  # read by OAuthConfig.fromInfoPlist()
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: de.newtelco.minimail.oauth
+            CFBundleURLName: com.minimail.oauth
             CFBundleURLSchemes: [$(GOOGLE_REVERSED_CLIENT_ID)]
     entitlements: { path: minimail/minimail.entitlements, properties: {} }
     scheme:
@@ -709,7 +709,7 @@ targets:
       - { package: MailCore, product: MailHTML }
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.newtelco.minimailTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.minimailTests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/minimail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/minimail
         BUNDLE_LOADER: $(TEST_HOST)
 ```
@@ -722,7 +722,7 @@ Facts: `CFBundleURLSchemes` = reversed client id, single-slash redirect path `[g
         excludes: ["**/*.swift"]
 ```
 
-Resulting Info.plist keys the tests check (§7): `BGTaskSchedulerPermittedIdentifiers = ["de.newtelco.minimail.refresh"]`, `UIBackgroundModes = ["fetch"]`, `UILaunchScreen = {UIColorName: "LaunchBackground"}`, `GoogleClientID = "REPLACE.apps.googleusercontent.com"` (until the owner edits `Google.xcconfig`), `CFBundleURLTypes[0].CFBundleURLSchemes[0] = "com.googleusercontent.apps.REPLACE"`, `ITSAppUsesNonExemptEncryption = false`, `CFBundleDisplayName = "minimail"`.
+Resulting Info.plist keys the tests check (§7): `BGTaskSchedulerPermittedIdentifiers = ["com.minimail.refresh"]`, `UIBackgroundModes = ["fetch"]`, `UILaunchScreen = {UIColorName: "LaunchBackground"}`, `GoogleClientID = "REPLACE.apps.googleusercontent.com"` (until the owner edits `Google.xcconfig`), `CFBundleURLTypes[0].CFBundleURLSchemes[0] = "com.googleusercontent.apps.REPLACE"`, `ITSAppUsesNonExemptEncryption = false`, `CFBundleDisplayName = "minimail"`.
 
 ### 5.2 `Packages/MailCore/Package.swift` (verbatim architecture §1.5)
 
@@ -828,7 +828,7 @@ DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
 
 `Config/Google.xcconfig`:
 ```
-// OAuth client (type iOS) created in the newtelco.de Google Cloud project (PLAN.md "Google Cloud setup").
+// OAuth client (type iOS) created in the example.com Google Cloud project (PLAN.md "Google Cloud setup").
 // GOOGLE_REVERSED_CLIENT_ID is GOOGLE_CLIENT_ID with its two dot-separated halves swapped.
 GOOGLE_CLIENT_ID = REPLACE.apps.googleusercontent.com
 GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.REPLACE
@@ -1070,7 +1070,7 @@ EOF
 
 XcodeGen adds `.xcprivacy` files under `sources` to the Copy Bundle Resources phase; the file lands at the app bundle root (`Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy")` is non-nil).
 
-### 5.13 Settings JSON on disk (`UserDefaults` key `de.newtelco.minimail.settings`, `.sortedKeys`)
+### 5.13 Settings JSON on disk (`UserDefaults` key `com.minimail.settings`, `.sortedKeys`)
 
 Default value after one `update { _ in }` (nil `lastSignedInEmail` omitted; keys sorted lexicographically):
 
@@ -1186,20 +1186,20 @@ Shared helper (private in each file, no support module — 14 owns `minimailTest
 | | `testHexCompositesAlpha` | `SystemPalette.hex(UIColor(white: 0, alpha: 0.5), scheme: .light, over: .white)` | `== "#808080"` (0.5·0 + 0.5·255 = 127.5 → 128) |
 | | `testHexGrayscaleColor` | `SystemPalette.hex(.white, scheme: .light)`, `(.black, …)` | `"#ffffff"`, `"#000000"` |
 | `minimailTests/App/AppEnvironmentTests.swift` | `testTestingModeUsesIsolatedDefaults` | `AppEnvironment(testing: true)` | `isTesting == true`; `env.defaults !== UserDefaults.standard`; `env.settings.defaults === env.defaults`; `env.settings.settings == Settings()`; `env.theme.choice == .system` |
-| | `testTestingModeWipesSuite` | write `{"themeChoice":"dark"}` into suite `de.newtelco.minimail.testing`, then `AppEnvironment(testing: true)` | `env.theme.choice == .system` |
+| | `testTestingModeWipesSuite` | write `{"themeChoice":"dark"}` into suite `com.minimail.testing`, then `AppEnvironment(testing: true)` | `env.theme.choice == .system` |
 | | `testProcessFlagDetected` | — | `AppEnvironment.isTestingProcess == true` (the scheme sets `MINIMAIL_TESTING=1`) |
 | | `testDeferredWorkIdempotent` | `await env.startDeferredWork()` twice | `deferredWorkStarted == true`; second call returns immediately (elapsed < 100 ms) |
 | | `testMarkFirstListPaintTwiceIsSafe` | call twice | no crash (`XCTAssertNoThrow` around the calls) |
 | | `testRootViewHosts` | `UIHostingController(rootView: RootView().environment(env).environment(env.theme).environment(env.settings))`; `view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)`; `view.layoutIfNeeded()` | `view.subviews.isEmpty == false`; no crash |
 | | `testInitTiming` | `measure { _ = AppEnvironment(testing: true) }` | records only (no gate — decision 15) |
-| `minimailTests/App/BundleConfigTests.swift` | `testBackgroundKeys` | `Bundle.main.infoDictionary!` | `["BGTaskSchedulerPermittedIdentifiers"] as? [String] == ["de.newtelco.minimail.refresh"]`; `["UIBackgroundModes"] as? [String] == ["fetch"]` |
+| `minimailTests/App/BundleConfigTests.swift` | `testBackgroundKeys` | `Bundle.main.infoDictionary!` | `["BGTaskSchedulerPermittedIdentifiers"] as? [String] == ["com.minimail.refresh"]`; `["UIBackgroundModes"] as? [String] == ["fetch"]` |
 | | `testLaunchScreenColor` | | `(["UILaunchScreen"] as? [String: Any])?["UIColorName"] as? String == "LaunchBackground"`; `UIColor(named: "LaunchBackground") != nil` |
 | | `testOAuthKeys` | | `(["GoogleClientID"] as? String)?.hasSuffix(".apps.googleusercontent.com") == true`; first `CFBundleURLSchemes` entry `hasPrefix("com.googleusercontent.apps.")` |
 | | `testDisplayAndCategory` | | `CFBundleDisplayName == "minimail"`, `LSApplicationCategoryType == "public.app-category.productivity"`, `ITSAppUsesNonExemptEncryption as? Bool == false`, `CFBundleShortVersionString == "0.1.0"` |
 | | `testPrivacyManifestBundled` | | `Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy") != nil`; plist decodes; `NSPrivacyAccessedAPITypes[0].NSPrivacyAccessedAPIType == "NSPrivacyAccessedAPICategoryUserDefaults"`; reasons contain `"CA92.1"` |
 | | `testAccentColorAsset` | | `UIColor(named: "AccentColor") != nil` |
 | | `testFixtureFolderCopied` | `Bundle(for: Self.self).url(forResource: "smoke", withExtension: "json", subdirectory: "Fixtures/vectors")` | non-nil (proves the `type: folder` copy in `project.yml`) |
-| `minimailTests/App/LogAndFormattersTests.swift` | `testLoggerCategoriesExist` | touch `Log.auth … Log.bg` | `Log.subsystem == "de.newtelco.minimail"`; each `Logger` value is constructible (compile + no crash); `Log.Interval.allCases.count == 8` |
+| `minimailTests/App/LogAndFormattersTests.swift` | `testLoggerCategoriesExist` | touch `Log.auth … Log.bg` | `Log.subsystem == "com.minimail"`; each `Logger` value is constructible (compile + no crash); `Log.Interval.allCases.count == 8` |
 | | `testIntervalNamesMatchCases` | loop | `"\(interval.name)" == interval.rawValue` for every case |
 | | `testMeasureReturnsValueAndEndsOnThrow` | `Log.measure(.threadOpen) { 42 }`; `XCTAssertThrowsError(try Log.measure(.bodyLoad) { throw E() })` | `== 42`; throws propagate |
 | | `testMeasureAsync` | `await Log.measure(.deltaSync) { await Task.yield(); return "x" }` | `== "x"` |
@@ -1219,7 +1219,7 @@ Ordered; each is one sitting. "Verify" commands run on Linux unless marked (macO
 - [ ] **T01.6 App tests** — files: `minimailTests/Settings/SettingsStoreTests.swift`, `minimailTests/Theme/ThemeStoreTests.swift`, `minimailTests/App/AppEnvironmentTests.swift`, `minimailTests/App/BundleConfigTests.swift`, `minimailTests/App/LogAndFormattersTests.swift`. Done when all 42 app tests of §7.2 pass. Verify (macOS): `make test-app` and `xcrun xcresulttool get test-results summary --path .build/results/unit.xcresult --compact` shows `failedTests: 0`.
 - [ ] **T01.7 Lint clean** — files: any of the above (formatting only). Done when `make format` produces no diff on a second run and `make lint` exits 0. Verify (macOS or Linux with a Swift 6 toolchain): `make format && git diff --stat && make lint`.
 - [ ] **T01.8 CI workflow** — files: `.github/workflows/ci.yml`. Done when the YAML parses and both jobs are green on a pull request (or, without GitHub access, `python3 -c "import yaml,sys;yaml.safe_load(open('.github/workflows/ci.yml'))"` passes and the job steps match §5.8 exactly). Verify: the YAML parse command; on GitHub: both checks `ci / core` and `ci / ios` pass.
-- [ ] **T01.9 Simulator smoke** (macOS, optional if no simulator available) — no files. Done when the app launches and shows the placeholder in light and dark appearance. Verify: `UDID=$(xcrun simctl list devices available --json | jq -r '[.devices[][] | select(.name=="iPhone 17")][0].udid'); xcrun simctl boot "$UDID" || true; xcrun simctl install "$UDID" .build/DerivedData/Build/Products/Debug-iphonesimulator/minimail.app; xcrun simctl launch "$UDID" de.newtelco.minimail; xcrun simctl io "$UDID" screenshot .build/shot-light.png; xcrun simctl ui "$UDID" appearance dark; xcrun simctl io "$UDID" screenshot .build/shot-dark.png` (simctl flags UNVERIFIED `[tooling §2.2]`; consult `xcrun simctl help`).
+- [ ] **T01.9 Simulator smoke** (macOS, optional if no simulator available) — no files. Done when the app launches and shows the placeholder in light and dark appearance. Verify: `UDID=$(xcrun simctl list devices available --json | jq -r '[.devices[][] | select(.name=="iPhone 17")][0].udid'); xcrun simctl boot "$UDID" || true; xcrun simctl install "$UDID" .build/DerivedData/Build/Products/Debug-iphonesimulator/minimail.app; xcrun simctl launch "$UDID" com.minimail; xcrun simctl io "$UDID" screenshot .build/shot-light.png; xcrun simctl ui "$UDID" appearance dark; xcrun simctl io "$UDID" screenshot .build/shot-dark.png` (simctl flags UNVERIFIED `[tooling §2.2]`; consult `xcrun simctl help`).
 
 ---
 
@@ -1261,4 +1261,4 @@ Ordered; each is one sitting. "Verify" commands run on Linux unless marked (macO
 | A12 | App Store / TestFlight accept a flat single-colour 1024 px icon | assumed (icons are only validated for size, alpha and format) | Owner may replace `AppIcon.png` later; the catalog entry stays. |
 | A13 | `PrivacyInfo.xcprivacy` reason codes beyond `CA92.1` | open | Module 06 decides whether `FileManager` timestamp access (`C617.1`) is needed for `Database.open`'s attribute write; if so it edits this file (modify) and notes it. |
 | A14 | Scheme `environmentVariables` apply to the test action's host app | assumed (Xcode's test action inherits the run action's environment by default; XcodeGen writes both) | `testProcessFlagDetected` fails loudly if not; fallback: add `MINIMAIL_TESTING` under `scheme.testVariants`/`testTargets` env in `project.yml` per ProjectSpec.md. |
-| A15 | Cold-start budget < 15 ms for step 1 | not gated (decision 15) | `testInitTiming` records `measure` results only; real numbers come from `log stream --predicate 'subsystem == "de.newtelco.minimail"'` on device (§12.1). |
+| A15 | Cold-start budget < 15 ms for step 1 | not gated (decision 15) | `testInitTiming` records `measure` results only; real numbers come from `log stream --predicate 'subsystem == "com.minimail"'` on device (§12.1). |

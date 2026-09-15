@@ -613,7 +613,7 @@ return String(data: data, encoding: .isoLatin1) ?? String(decoding: data, as: UT
 3. `atextOrSpace` = ASCII letters, digits, SP and the characters ! # $ % & ' * + - / = ? ^ _ { | } ~ and the backtick (RFC 5322 §3.2.3 atext). If every scalar of `n` is in that set → `n + " <" + addr + ">"`.
 4. Else → `"\"" + n.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\" <" + addr + ">"`.
 
-Examples: `("Max Mustermann", "max.mustermann@newtelco.de")` → `Max Mustermann <max.mustermann@newtelco.de>`; `("Müller, Alice", …)` → `=?UTF-8?B?TcO8bGxlciwgQWxpY2U=?= <alice@example.com>`; `("J. Doe", …)` → `"J. Doe" <…>` (`.` is not atext); `("Bob \"The Builder\"", …)` → `"Bob \"The Builder\"" <…>`; `(nil, "bob@example.com")` → `bob@example.com`.
+Examples: `("Max Mustermann", "max.mustermann@example.com")` → `Max Mustermann <max.mustermann@example.com>`; `("Müller, Alice", …)` → `=?UTF-8?B?TcO8bGxlciwgQWxpY2U=?= <alice@example.com>`; `("J. Doe", …)` → `"J. Doe" <…>` (`.` is not atext); `("Bob \"The Builder\"", …)` → `"Bob \"The Builder\"" <…>`; `(nil, "bob@example.com")` → `bob@example.com`.
 
 ### 4.7 `AddressParser`
 
@@ -663,7 +663,7 @@ decodePhrase(p):
     result = RFC2047.decode(joined).trimmingCharacters(in: .whitespacesAndNewlines)
     return result.isEmpty ? nil : result
 ```
-Guaranteed rows: the 10 rows of `[mime-rfc §8.4]` (§5.4 `addresses.json`) plus: `Team: max.mustermann@newtelco.de, bob@example.com;` → 2 mailboxes; `undisclosed-recipients:;` → `[]`; `bob@example.com,, ,carol@partner.example` → 2; `Bob <@relay.example:bob@example.com>` → `("Bob", "bob@example.com")`; `"Alice (Sales)" <a@b>` → name `Alice (Sales)` (parentheses inside quotes are not a comment).
+Guaranteed rows: the 10 rows of `[mime-rfc §8.4]` (§5.4 `addresses.json`) plus: `Team: max.mustermann@example.com, bob@example.com;` → 2 mailboxes; `undisclosed-recipients:;` → `[]`; `bob@example.com,, ,carol@partner.example` → 2; `Bob <@relay.example:bob@example.com>` → `("Bob", "bob@example.com")`; `"Alice (Sales)" <a@b>` → name `Alice (Sales)` (parentheses inside quotes are not a comment).
 
 **parseFirst** = `parseList(headerValue).first`.
 
@@ -715,7 +715,7 @@ Rows: `text/html; charset="UTF-8"` → type `text/html`, `param("charset") == "U
 
 **normalize:** trim whitespace; prepend `<` if missing; append `>` if missing; nil when the inside contains SP/TAB/CR/LF or is empty. `" CAF=abc@mail.example.com "` → `<CAF=abc@mail.example.com>`; `"<x>"` → `"<x>"`; `"<a b@c>"` → nil; `""` → nil.
 
-**generate:** `"<\(uuid.uuidString)@\(domain.isEmpty ? "localhost" : domain)>"`. Fixed UUID `7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70` with `newtelco.de` → `<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@newtelco.de>`.
+**generate:** `"<\(uuid.uuidString)@\(domain.isEmpty ? "localhost" : domain)>"`. Fixed UUID `7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70` with `example.com` → `<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@example.com>`.
 
 **referencesChain:**
 ```
@@ -783,18 +783,18 @@ Header values are folded only where stated; the `Content-Type:` line of the fixt
 Reference inputs that reproduce `Fixtures/mime/reply-all.eml` byte for byte (see §7 `MIMEBuilderTests.testReplyAllByteExact`):
 ```
 OutgoingMessage(
-  from: Mailbox(name: "Max Mustermann", addr: "max.mustermann@newtelco.de"),
+  from: Mailbox(name: "Max Mustermann", addr: "max.mustermann@example.com"),
   to: [Mailbox(name: "Alice Müller", addr: "alice@example.com"), Mailbox(name: nil, addr: "bob@example.com")],
   cc: [Mailbox(name: "Carol Chen", addr: "carol@partner.example")],
   subject: "Re: Angebot für die Erweiterung",
   date: Date(timeIntervalSince1970: 1789113600), timeZone: TimeZone(identifier: "Europe/Berlin")!,   // → +0200 (CEST)
-  messageID: "<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@newtelco.de>",
+  messageID: "<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@example.com>",
   inReplyTo: "<CAF=abc123@mail.example.com>",
   references: ["<older-id@example.com>", "<CAF=abc123@mail.example.com>"],
   textBody: Fixture text of §5.2 (T_REPLY), htmlBody: Fixture html of §5.2 (H_REPLY), attachments: [])
 boundaries: .fixed(alt: "=_minimail_alt_7c1e3f2a9b4d4e6f", mixed: "=_minimail_mixed_unused")
 ```
-Forward (`forward-pdf.eml`): `to: [Mailbox(name: "Dave Davis", addr: "dave@newtelco.de")]`, `cc: []`, `subject: "Fwd: Angebot für die Erweiterung"`, `date: Date(timeIntervalSince1970: 1789113900)`, `messageID: "<0F1E2D3C-4B5A-4968-8778-695A4B3C2D1E@newtelco.de>"`, `inReplyTo: nil`, same `references`, `textBody: T_FWD`, `htmlBody: H_FWD`, `attachments: [OutgoingAttachment(filename: "Angebot-2026-09.pdf", mimeType: "application/pdf", data: stub.pdf bytes)]`, boundaries `.fixed(alt: "=_minimail_alt_1a2b3c4d5e6f7a8b", mixed: "=_minimail_mixed_0b1c2d3e4f5a6b7c")`. The Gmail-web variant (`forward-pdf-gmailweb.eml`) is the same with `inReplyTo: "<CAF=abc123@mail.example.com>"`.
+Forward (`forward-pdf.eml`): `to: [Mailbox(name: "Dave Davis", addr: "dave@example.com")]`, `cc: []`, `subject: "Fwd: Angebot für die Erweiterung"`, `date: Date(timeIntervalSince1970: 1789113900)`, `messageID: "<0F1E2D3C-4B5A-4968-8778-695A4B3C2D1E@example.com>"`, `inReplyTo: nil`, same `references`, `textBody: T_FWD`, `htmlBody: H_FWD`, `attachments: [OutgoingAttachment(filename: "Angebot-2026-09.pdf", mimeType: "application/pdf", data: stub.pdf bytes)]`, boundaries `.fixed(alt: "=_minimail_alt_1a2b3c4d5e6f7a8b", mixed: "=_minimail_mixed_0b1c2d3e4f5a6b7c")`. The Gmail-web variant (`forward-pdf-gmailweb.eml`) is the same with `inReplyTo: "<CAF=abc123@mail.example.com>"`.
 
 ### 4.14 `ComposeStyle`
 
@@ -817,7 +817,7 @@ if To.isEmpty && !Cc.isEmpty { To = Cc; Cc = [] }
 if To.isEmpty, let from { To = [from] }                           // note-to-self: never empty To
 return Recipients(to: To, cc: Cc)
 ```
-Display names: first-seen wins (a consequence of `filter`); comparison on `key` only. The 16 rows of `[mime-rfc §8.1]` are the contract (§5.4 `reply-all.json`); `me = SelfIdentity(primary: Mailbox(name: "Max Mustermann", addr: "max.mustermann@newtelco.de"), allAddresses: ["m.mustermann@newtelco.de"])`.
+Display names: first-seen wins (a consequence of `filter`); comparison on `key` only. The 16 rows of `[mime-rfc §8.1]` are the contract (§5.4 `reply-all.json`); `me = SelfIdentity(primary: Mailbox(name: "Max Mustermann", addr: "max.mustermann@example.com"), allAddresses: ["m.mustermann@example.com"])`.
 
 ### 4.16 `SubjectPrefix`
 
@@ -866,7 +866,7 @@ Lines joined with `"\n"`; exactly two empty lines between the header block and t
 4. Decode entities: `&amp; &lt; &gt; &quot; &apos; &#39; &nbsp;` (→ SP) and numeric `&#NNN;` / `&#xHH;` (invalid → literal); unknown named entities kept literally.
 5. Trim SP/TAB at both ends of every line; collapse 3+ consecutive `\n` to 2; trim leading/trailing `\n`.
 
-`<div>Hallo Max,<div><br></div><div>ist das Angebot?</div></div>` → `"Hallo Max,\n\nist das Angebot?"`; `<p>a &amp; b</p><p>c</p>` → `"a & b\nc"`; `<style>p{}</style>x<script>1</script>` → `"x"`; `<div style="x">Max Mustermann<br>newtelco GmbH<br><a href="https://www.newtelco.de">www.newtelco.de</a></div>` → `"Max Mustermann\nnewtelco GmbH\nwww.newtelco.de"`.
+`<div>Hallo Max,<div><br></div><div>ist das Angebot?</div></div>` → `"Hallo Max,\n\nist das Angebot?"`; `<p>a &amp; b</p><p>c</p>` → `"a & b\nc"`; `<style>p{}</style>x<script>1</script>` → `"x"`; `<div style="x">Max Mustermann<br>Example GmbH<br><a href="https://www.example.com">www.example.com</a></div>` → `"Max Mustermann\nExample GmbH\nwww.example.com"`.
 
 ### 4.18 `OutgoingBodies`
 
@@ -891,7 +891,7 @@ if let s = signatureText?.trimmingTrailingNewlines, !s.isEmpty: parts += ["", "-
 if let q = quoteText, !q.isEmpty: parts += ["", q]
 return parts.joined("\n")
 ```
-`typed = "Hallo Alice,\n\nja.\n\nViele Grüße\nMax"`, sig `"Max Mustermann\nnewtelco GmbH"`, quote `"On … wrote:\n> Hallo"` → `"Hallo Alice,\n\nja.\n\nViele Grüße\nMax\n\n-- \nMax Mustermann\nnewtelco GmbH\n\nOn … wrote:\n> Hallo"`.
+`typed = "Hallo Alice,\n\nja.\n\nViele Grüße\nMax"`, sig `"Max Mustermann\nExample GmbH"`, quote `"On … wrote:\n> Hallo"` → `"Hallo Alice,\n\nja.\n\nViele Grüße\nMax\n\n-- \nMax Mustermann\nExample GmbH\n\nOn … wrote:\n> Hallo"`.
 
 ### 4.19 `PlainTextHTML.convert(text)`
 
@@ -904,7 +904,7 @@ return parts.joined("\n")
    - line → `"<div>" + joined + "</div>"`.
 3. Return `"<div class=\"mm-plaintext\">" + lines.joined() + "</div>"`.
 
-Examples: `"see https://x.com/a?b=1&c=2."` → `<div class="mm-plaintext"><div>see <a href="https://x.com/a?b=1&amp;c=2">https://x.com/a?b=1&amp;c=2</a>.</div></div>`; `"(www.newtelco.de)"` → `<div class="mm-plaintext"><div>(<a href="http://www.newtelco.de">www.newtelco.de</a>)</div></div>`; `"a < b\n\nc"` → `<div class="mm-plaintext"><div>a &lt; b</div><div><br></div><div>c</div></div>`; `""` → `<div class="mm-plaintext"><div><br></div></div>`.
+Examples: `"see https://x.com/a?b=1&c=2."` → `<div class="mm-plaintext"><div>see <a href="https://x.com/a?b=1&amp;c=2">https://x.com/a?b=1&amp;c=2</a>.</div></div>`; `"(www.example.com)"` → `<div class="mm-plaintext"><div>(<a href="http://www.example.com">www.example.com</a>)</div></div>`; `"a < b\n\nc"` → `<div class="mm-plaintext"><div>a &lt; b</div><div><br></div><div>c</div></div>`; `""` → `<div class="mm-plaintext"><div><br></div></div>`.
 
 ### 4.20 Concurrency, isolation, performance
 
@@ -945,15 +945,15 @@ The CRLF bytes must survive git: this module adds `Packages/MailCore/Tests/MailC
 
 ### 5.2 Body strings used by the byte-exact tests (Swift string literals inside `MIMEBuilderTests.swift`)
 
-To keep the trailing space of the `-- ` line safe from editors and `swift format`, `MIMEBuilderTests` builds `textReply` programmatically: `["Hallo Alice,", "", "ja, das Angebot geht heute noch raus.", "", "Viele Grüße", "Max", "", "-- ", "Max Mustermann", "newtelco GmbH", "https://www.newtelco.de", "", "On Thu, Sep 10, 2026 at 9:12\u{202F}AM Alice Müller <alice@example.com> wrote:", "> Hallo Max,", ">", "> ist das Angebot für die Erweiterung schon unterwegs?", ">", "> Gruß", "> Alice", ""].joined(separator: "\n")` (the final empty element yields the trailing newline).
+To keep the trailing space of the `-- ` line safe from editors and `swift format`, `MIMEBuilderTests` builds `textReply` programmatically: `["Hallo Alice,", "", "ja, das Angebot geht heute noch raus.", "", "Viele Grüße", "Max", "", "-- ", "Max Mustermann", "Example GmbH", "https://www.example.com", "", "On Thu, Sep 10, 2026 at 9:12\u{202F}AM Alice Müller <alice@example.com> wrote:", "> Hallo Max,", ">", "> ist das Angebot für die Erweiterung schon unterwegs?", ">", "> Gruß", "> Alice", ""].joined(separator: "\n")` (the final empty element yields the trailing newline).
 
 ```swift
-static let htmlReply = "<div dir=\"ltr\" style=\"font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#1d1d1f\">Hallo Alice,<div><br></div><div>ja, das Angebot geht heute noch raus.</div><div><br></div><div>Viele Grüße<br>Max</div><div><br></div><span class=\"gmail_signature_prefix\">-- </span><br><div class=\"gmail_signature\"><div style=\"font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#222222\">Max Mustermann<br>newtelco GmbH<br><a href=\"https://www.newtelco.de\">www.newtelco.de</a></div></div></div><br><div class=\"gmail_quote gmail_quote_container\"><div dir=\"ltr\" class=\"gmail_attr\">On Thu, Sep 10, 2026 at 9:12\u{202F}AM Alice Müller &lt;<a href=\"mailto:alice@example.com\">alice@example.com</a>&gt; wrote:<br></div><blockquote class=\"gmail_quote\" style=\"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex\"><div dir=\"ltr\">Hallo Max,<div><br></div><div>ist das Angebot für die Erweiterung schon unterwegs?</div><div><br></div><div>Gruß<br>Alice</div></div></blockquote></div>"
+static let htmlReply = "<div dir=\"ltr\" style=\"font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#1d1d1f\">Hallo Alice,<div><br></div><div>ja, das Angebot geht heute noch raus.</div><div><br></div><div>Viele Grüße<br>Max</div><div><br></div><span class=\"gmail_signature_prefix\">-- </span><br><div class=\"gmail_signature\"><div style=\"font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#222222\">Max Mustermann<br>Example GmbH<br><a href=\"https://www.example.com\">www.example.com</a></div></div></div><br><div class=\"gmail_quote gmail_quote_container\"><div dir=\"ltr\" class=\"gmail_attr\">On Thu, Sep 10, 2026 at 9:12\u{202F}AM Alice Müller &lt;<a href=\"mailto:alice@example.com\">alice@example.com</a>&gt; wrote:<br></div><blockquote class=\"gmail_quote\" style=\"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex\"><div dir=\"ltr\">Hallo Max,<div><br></div><div>ist das Angebot für die Erweiterung schon unterwegs?</div><div><br></div><div>Gruß<br>Alice</div></div></blockquote></div>"
 // no trailing newline; the builder appends CRLF
 
-static let textForward = ["FYI, siehe Anhang.", "", "-- ", "Max Mustermann", "newtelco GmbH", "https://www.newtelco.de", "", "---------- Forwarded message ---------", "From: Alice Müller <alice@example.com>", "Date: Thu, Sep 10, 2026 at 9:12\u{202F}AM", "Subject: Angebot für die Erweiterung", "To: Max Mustermann <max.mustermann@newtelco.de>", "Cc: Carol Chen <carol@partner.example>", "", "", "Hallo Max,", "", "ist das Angebot für die Erweiterung schon unterwegs?", "", "Gruß", "Alice", ""].joined(separator: "\n")
+static let textForward = ["FYI, siehe Anhang.", "", "-- ", "Max Mustermann", "Example GmbH", "https://www.example.com", "", "---------- Forwarded message ---------", "From: Alice Müller <alice@example.com>", "Date: Thu, Sep 10, 2026 at 9:12\u{202F}AM", "Subject: Angebot für die Erweiterung", "To: Max Mustermann <max.mustermann@example.com>", "Cc: Carol Chen <carol@partner.example>", "", "", "Hallo Max,", "", "ist das Angebot für die Erweiterung schon unterwegs?", "", "Gruß", "Alice", ""].joined(separator: "\n")
 
-static let htmlForward = "<div dir=\"ltr\" style=\"font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#1d1d1f\">FYI, siehe Anhang.<div><br></div><span class=\"gmail_signature_prefix\">-- </span><br><div class=\"gmail_signature\"><div style=\"font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#222222\">Max Mustermann<br>newtelco GmbH<br><a href=\"https://www.newtelco.de\">www.newtelco.de</a></div></div></div><br><div class=\"gmail_quote gmail_quote_container\"><div dir=\"ltr\" class=\"gmail_attr\">---------- Forwarded message ---------<br>From: <strong class=\"gmail_sendername\" dir=\"auto\">Alice Müller</strong> <span dir=\"auto\">&lt;<a href=\"mailto:alice@example.com\">alice@example.com</a>&gt;</span><br>Date: Thu, Sep 10, 2026 at 9:12\u{202F}AM<br>Subject: Angebot für die Erweiterung<br>To: Max Mustermann &lt;<a href=\"mailto:max.mustermann@newtelco.de\">max.mustermann@newtelco.de</a>&gt;<br>Cc: Carol Chen &lt;<a href=\"mailto:carol@partner.example\">carol@partner.example</a>&gt;<br></div><br><br><div dir=\"ltr\">Hallo Max,<div><br></div><div>ist das Angebot für die Erweiterung schon unterwegs?</div><div><br></div><div>Gruß<br>Alice</div></div></div>"
+static let htmlForward = "<div dir=\"ltr\" style=\"font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#1d1d1f\">FYI, siehe Anhang.<div><br></div><span class=\"gmail_signature_prefix\">-- </span><br><div class=\"gmail_signature\"><div style=\"font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#222222\">Max Mustermann<br>Example GmbH<br><a href=\"https://www.example.com\">www.example.com</a></div></div></div><br><div class=\"gmail_quote gmail_quote_container\"><div dir=\"ltr\" class=\"gmail_attr\">---------- Forwarded message ---------<br>From: <strong class=\"gmail_sendername\" dir=\"auto\">Alice Müller</strong> <span dir=\"auto\">&lt;<a href=\"mailto:alice@example.com\">alice@example.com</a>&gt;</span><br>Date: Thu, Sep 10, 2026 at 9:12\u{202F}AM<br>Subject: Angebot für die Erweiterung<br>To: Max Mustermann &lt;<a href=\"mailto:max.mustermann@example.com\">max.mustermann@example.com</a>&gt;<br>Cc: Carol Chen &lt;<a href=\"mailto:carol@partner.example\">carol@partner.example</a>&gt;<br></div><br><br><div dir=\"ltr\">Hallo Max,<div><br></div><div>ist das Angebot für die Erweiterung schon unterwegs?</div><div><br></div><div>Gruß<br>Alice</div></div></div>"
 ```
 These literals are the decoded QP parts of the fixtures (verified: re-encoding them with the §4.2 algorithm reproduces the fixture bytes exactly). The fixture HTML uses `font-family:Helvetica,Arial,sans-serif` (no spaces) and bare fragments (no `<html>` wrapper) — they pin `MIMEBuilder`, not `OutgoingBodies`.
 
@@ -1065,20 +1065,20 @@ The `0x8000_xxxx` raw values follow the documented Foundation convention `NSStri
 `reply-all.json` — `[{"id": Int, "from": String, "replyTo": String, "to": String, "cc": String, "expectedTo": String, "expectedCc": String}]`; every field is a header value parsed with `AddressParser.parseList` (empty string → `[]`); the 16 rows of `[mime-rfc §8.1]`:
 ```json
 [
-  {"id": 1, "from": "Alice <alice@example.com>", "replyTo": "", "to": "max.mustermann@newtelco.de", "cc": "", "expectedTo": "Alice <alice@example.com>", "expectedCc": ""},
-  {"id": 2, "from": "Alice <alice@example.com>", "replyTo": "", "to": "Max <max.mustermann@newtelco.de>, Bob <bob@example.com>", "cc": "carol@partner.example", "expectedTo": "Alice <alice@example.com>, Bob <bob@example.com>", "expectedCc": "carol@partner.example"},
-  {"id": 3, "from": "Alice <alice@example.com>", "replyTo": "Support <support@example.com>", "to": "max.mustermann@newtelco.de, bob@example.com", "cc": "", "expectedTo": "Support <support@example.com>, bob@example.com", "expectedCc": ""},
-  {"id": 4, "from": "alice@example.com", "replyTo": "", "to": "MAX.MUSTERMANN@newtelco.de, Bob <bob@example.com>", "cc": "M.Mustermann@NewTelco.de, dave@newtelco.de", "expectedTo": "alice@example.com, Bob <bob@example.com>", "expectedCc": "dave@newtelco.de"},
+  {"id": 1, "from": "Alice <alice@example.com>", "replyTo": "", "to": "max.mustermann@example.com", "cc": "", "expectedTo": "Alice <alice@example.com>", "expectedCc": ""},
+  {"id": 2, "from": "Alice <alice@example.com>", "replyTo": "", "to": "Max <max.mustermann@example.com>, Bob <bob@example.com>", "cc": "carol@partner.example", "expectedTo": "Alice <alice@example.com>, Bob <bob@example.com>", "expectedCc": "carol@partner.example"},
+  {"id": 3, "from": "Alice <alice@example.com>", "replyTo": "Support <support@example.com>", "to": "max.mustermann@example.com, bob@example.com", "cc": "", "expectedTo": "Support <support@example.com>, bob@example.com", "expectedCc": ""},
+  {"id": 4, "from": "alice@example.com", "replyTo": "", "to": "MAX.MUSTERMANN@example.com, Bob <bob@example.com>", "cc": "M.Mustermann@example.com, dave@example.com", "expectedTo": "alice@example.com, Bob <bob@example.com>", "expectedCc": "dave@example.com"},
   {"id": 5, "from": "Alice <alice@example.com>", "replyTo": "", "to": "bob@example.com", "cc": "Alice <alice@example.com>, bob@example.com", "expectedTo": "Alice <alice@example.com>, bob@example.com", "expectedCc": ""},
-  {"id": 6, "from": "Alice <alice@example.com>", "replyTo": "alice@example.com, list@example.com", "to": "max.mustermann@newtelco.de", "cc": "", "expectedTo": "alice@example.com, list@example.com", "expectedCc": ""},
-  {"id": 7, "from": "\"Müller, Alice\" <alice@example.com>", "replyTo": "", "to": "max.mustermann@newtelco.de", "cc": "", "expectedTo": "\"Müller, Alice\" <alice@example.com>", "expectedCc": ""},
-  {"id": 8, "from": "=?UTF-8?B?QWxpY2UgTcO8bGxlcg==?= <alice@example.com>", "replyTo": "", "to": "max.mustermann@newtelco.de", "cc": "", "expectedTo": "Alice Müller <alice@example.com>", "expectedCc": ""},
-  {"id": 9, "from": "Max Mustermann <max.mustermann@newtelco.de>", "replyTo": "", "to": "Alice <alice@example.com>, bob@example.com", "cc": "carol@partner.example", "expectedTo": "Alice <alice@example.com>, bob@example.com", "expectedCc": "carol@partner.example"},
-  {"id": 10, "from": "Max <max.mustermann@newtelco.de>", "replyTo": "list@example.com", "to": "alice@example.com", "cc": "", "expectedTo": "alice@example.com", "expectedCc": ""},
-  {"id": 11, "from": "Alice <alice@example.com>", "replyTo": "", "to": "Team: max.mustermann@newtelco.de, bob@example.com;", "cc": "", "expectedTo": "Alice <alice@example.com>, bob@example.com", "expectedCc": ""},
+  {"id": 6, "from": "Alice <alice@example.com>", "replyTo": "alice@example.com, list@example.com", "to": "max.mustermann@example.com", "cc": "", "expectedTo": "alice@example.com, list@example.com", "expectedCc": ""},
+  {"id": 7, "from": "\"Müller, Alice\" <alice@example.com>", "replyTo": "", "to": "max.mustermann@example.com", "cc": "", "expectedTo": "\"Müller, Alice\" <alice@example.com>", "expectedCc": ""},
+  {"id": 8, "from": "=?UTF-8?B?QWxpY2UgTcO8bGxlcg==?= <alice@example.com>", "replyTo": "", "to": "max.mustermann@example.com", "cc": "", "expectedTo": "Alice Müller <alice@example.com>", "expectedCc": ""},
+  {"id": 9, "from": "Max Mustermann <max.mustermann@example.com>", "replyTo": "", "to": "Alice <alice@example.com>, bob@example.com", "cc": "carol@partner.example", "expectedTo": "Alice <alice@example.com>, bob@example.com", "expectedCc": "carol@partner.example"},
+  {"id": 10, "from": "Max <max.mustermann@example.com>", "replyTo": "list@example.com", "to": "alice@example.com", "cc": "", "expectedTo": "alice@example.com", "expectedCc": ""},
+  {"id": 11, "from": "Alice <alice@example.com>", "replyTo": "", "to": "Team: max.mustermann@example.com, bob@example.com;", "cc": "", "expectedTo": "Alice <alice@example.com>, bob@example.com", "expectedCc": ""},
   {"id": 12, "from": "alice@example.com (Alice)", "replyTo": "", "to": "undisclosed-recipients:;", "cc": "", "expectedTo": "Alice <alice@example.com>", "expectedCc": ""},
-  {"id": 13, "from": "Alice <alice@example.com>", "replyTo": "", "to": "max.mustermann@newtelco.de", "cc": "max.mustermann@newtelco.de", "expectedTo": "Alice <alice@example.com>", "expectedCc": ""},
-  {"id": 14, "from": "Max <max.mustermann@newtelco.de>", "replyTo": "", "to": "max.mustermann@newtelco.de", "cc": "", "expectedTo": "Max <max.mustermann@newtelco.de>", "expectedCc": ""},
+  {"id": 13, "from": "Alice <alice@example.com>", "replyTo": "", "to": "max.mustermann@example.com", "cc": "max.mustermann@example.com", "expectedTo": "Alice <alice@example.com>", "expectedCc": ""},
+  {"id": 14, "from": "Max <max.mustermann@example.com>", "replyTo": "", "to": "max.mustermann@example.com", "cc": "", "expectedTo": "Max <max.mustermann@example.com>", "expectedCc": ""},
   {"id": 15, "from": "Alice <alice@example.com>", "replyTo": "", "to": "bob@example.com,, ,carol@partner.example", "cc": "", "expectedTo": "Alice <alice@example.com>, bob@example.com, carol@partner.example", "expectedCc": ""},
   {"id": 16, "from": "Alice <alice@example.com>", "replyTo": "", "to": "Bob <@relay.example:bob@example.com>", "cc": "", "expectedTo": "Alice <alice@example.com>, Bob <bob@example.com>", "expectedCc": ""}
 ]
@@ -1103,7 +1103,7 @@ The last row additionally asserts `RFC2047.encodeIfNeeded(reply, firstLineOffset
 
 - `Mailbox` JSON: `{"name":"Alice Müller","addr":"alice@example.com"}`; `name` absent/`null` when nil (synthesised Codable).
 - `ComposeStyle` JSON: `{"colorHex":"#000000","family":"helvetica","sizePx":14}` (module 01's `SettingsStore` encodes with `.sortedKeys`).
-- `QuoteSource` JSON (synthesised; `date` uses the encoder's date strategy — module 07 and 11 must configure the same `JSONEncoder`/`JSONDecoder`; the default `.deferredToDate` yields a number of seconds since 2001-01-01; 1789024353 − 978307200 = 810717153): `{"author":{"addr":"alice@example.com","name":"Alice Müller"},"cc":[],"date":810717153,"html":"<div>…</div>","subject":"Angebot","text":"…","to":[{"addr":"max.mustermann@newtelco.de","name":"Max Mustermann"}]}`.
+- `QuoteSource` JSON (synthesised; `date` uses the encoder's date strategy — module 07 and 11 must configure the same `JSONEncoder`/`JSONDecoder`; the default `.deferredToDate` yields a number of seconds since 2001-01-01; 1789024353 − 978307200 = 810717153): `{"author":{"addr":"alice@example.com","name":"Alice Müller"},"cc":[],"date":810717153,"html":"<div>…</div>","subject":"Angebot","text":"…","to":[{"addr":"max.mustermann@example.com","name":"Max Mustermann"}]}`.
 - `ComposeMode` JSON: `"replyAll"` / `"forward"`.
 
 No Info.plist keys, no SQL, no config values belong to this module.
@@ -1161,7 +1161,7 @@ All tests: XCTest, target `MailCoreTests`, run with `cd Packages/MailCore && swi
 | | `testEquatable` | two equal values, one with different param order | equal / not equal |
 | `MessageIDsTests.swift` | `testSplit` | the 5 inputs of §4.11 | exact arrays |
 | | `testNormalize` | `" CAF=abc@mail.example.com "`, `"<a@b>"`, `"<x>"`, `""`, `"<a b@c>"`, `"<>"` | `"<CAF=abc@mail.example.com>"`, `"<a@b>"`, `"<x>"`, nil, nil, nil |
-| | `testGenerate` | fixed UUID `7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70`, `newtelco.de`; empty domain | `"<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@newtelco.de>"`; `hasSuffix("@localhost>")` |
+| | `testGenerate` | fixed UUID `7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70`, `example.com`; empty domain | `"<7C1E3F2A-9B4D-4E6F-8A10-2B3C4D5E6F70@example.com>"`; `hasSuffix("@localhost>")` |
 | | `testReferencesChain` | the 6 cases of §4.11 | exact arrays |
 | `MIMEBuilderTests.swift` | `testReplyAllByteExact` | inputs of §4.13 (reply), `.fixed` boundaries | `build(...) == Fixture.data("mime/reply-all.eml")`; `.count == 2276`; on mismatch the test prints the first differing byte offset and the surrounding 40 bytes of both |
 | | `testForwardByteExact` | inputs of §4.13 (forward), `stub.pdf` from fixtures | `== Fixture.data("mime/forward-pdf.eml")`; `.count == 2927` |
@@ -1176,16 +1176,16 @@ All tests: XCTest, target `MailCoreTests`, run with `cd Packages/MailCore && swi
 | | `testDecodeLenient` | JSON `{}`; `{"family":"comic","sizePx":40,"colorHex":"#ABCDEF"}`; `{"sizePx":"x"}` | default; `.helvetica`/18/`"#abcdef"`; default (type mismatch on a field → default for that field, no throw) |
 | | `testEncodeSortedKeys` | default with `.sortedKeys` | `{"colorHex":"#000000","family":"helvetica","sizePx":14}` |
 | `ReplyAllTests.swift` | `testVectors` | `vectors/reply-all.json`, `me` of §4.15 | `recipients(...).to == parseList(expectedTo)` and `.cc == parseList(expectedCc)` for all 16 rows; row 7 serialized check |
-| | `testSelfIdentityNormalises` | `SelfIdentity(primary: Mailbox(name: nil, addr: "Max@NewTelco.de"), allAddresses: ["M.Mustermann@newtelco.de"])` | `allAddresses == ["max@newtelco.de", "m.mustermann@newtelco.de"]` |
+| | `testSelfIdentityNormalises` | `SelfIdentity(primary: Mailbox(name: nil, addr: "Max@example.com"), allAddresses: ["M.Mustermann@example.com"])` | `allAddresses == ["max@example.com", "m.mustermann@example.com"]` |
 | `SubjectPrefixTests.swift` | `testVectors` | `vectors/subject.json` | `reply(original) == reply`, `forward(original) == forward` for all rows; RFC 2047 assertions of §5.4 |
 | | `testStripForDisplay` | `"Re: Fwd: AW: Angebot"`, `"Re[2]: x"`, `"Rewards: x"`, `"Re: "`, `"Fwd:Angebot"`, `"  WG: Re: Hallo  "`, `"Angebot"` | `"Angebot"`, `"x"`, `"Rewards: x"`, `""`, `"Angebot"`, `"Hallo"`, `"Angebot"` |
 | `QuotingTests.swift` | `testAttributionLine` | author `Alice Müller <alice@example.com>`, date 1789024353, Europe/Berlin; author nil | `"On Thu, Sep 10, 2026 at 9:12\u{202F}AM Alice Müller <alice@example.com> wrote:"`; `"On Thu, Sep 10, 2026 at 9:12\u{202F}AM wrote:"` |
 | | `testReplyHTMLSkeleton` | `QuoteSource(author: Alice, date: 1789024353, subject: "Angebot für die Erweiterung", to: [Max], cc: [Carol], html: "<div dir=\"ltr\">Hallo Max</div>", text: "Hallo Max")`, Europe/Berlin | result == the exact string `<div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">On Thu, Sep 10, 2026 at 9:12\u{202F}AM Alice Müller &lt;<a href="mailto:alice@example.com">alice@example.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><div dir="ltr">Hallo Max</div></blockquote></div>` |
 | | `testReplyHTMLFallsBackToPlainText` | same with `html: nil`, `text: "a < b\n\nc"` | blockquote content == `PlainTextHTML.convert("a < b\n\nc")` |
 | | `testReplyTextQuoting` | `text: "Hallo Max,\n\nist das Angebot?\n\nGruß\nAlice\n"` | `"On Thu, Sep 10, 2026 at 9:12\u{202F}AM Alice Müller <alice@example.com> wrote:\n> Hallo Max,\n>\n> ist das Angebot?\n>\n> Gruß\n> Alice"` |
-| | `testForwardHTMLSkeleton` | same source as the reply test | result == the exact string `<div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">---------- Forwarded message ---------<br>From: <strong class="gmail_sendername" dir="auto">Alice Müller</strong> <span dir="auto">&lt;<a href="mailto:alice@example.com">alice@example.com</a>&gt;</span><br>Date: Thu, Sep 10, 2026 at 9:12\u{202F}AM<br>Subject: Angebot für die Erweiterung<br>To: Max Mustermann &lt;<a href="mailto:max.mustermann@newtelco.de">max.mustermann@newtelco.de</a>&gt;<br>Cc: Carol Chen &lt;<a href="mailto:carol@partner.example">carol@partner.example</a>&gt;<br></div><br><br><div dir="ltr">Hallo Max</div></div>` |
+| | `testForwardHTMLSkeleton` | same source as the reply test | result == the exact string `<div class="gmail_quote gmail_quote_container"><div dir="ltr" class="gmail_attr">---------- Forwarded message ---------<br>From: <strong class="gmail_sendername" dir="auto">Alice Müller</strong> <span dir="auto">&lt;<a href="mailto:alice@example.com">alice@example.com</a>&gt;</span><br>Date: Thu, Sep 10, 2026 at 9:12\u{202F}AM<br>Subject: Angebot für die Erweiterung<br>To: Max Mustermann &lt;<a href="mailto:max.mustermann@example.com">max.mustermann@example.com</a>&gt;<br>Cc: Carol Chen &lt;<a href="mailto:carol@partner.example">carol@partner.example</a>&gt;<br></div><br><br><div dir="ltr">Hallo Max</div></div>` |
 | | `testForwardOmitsEmptyCcAndEscapes` | `cc: []`, subject `"a <b> & c"`, author name `"X \"Y\""` | no `Cc:` in HTML or text; HTML contains `Subject: a &lt;b&gt; &amp; c` and `X &quot;Y&quot;`; text contains `Subject: a <b> & c` |
-| | `testForwardText` | source of the reply test with `text: "Hallo Max,\n\nGruß\nAlice"` | `"---------- Forwarded message ---------\nFrom: Alice Müller <alice@example.com>\nDate: Thu, Sep 10, 2026 at 9:12\u{202F}AM\nSubject: Angebot für die Erweiterung\nTo: Max Mustermann <max.mustermann@newtelco.de>\nCc: Carol Chen <carol@partner.example>\n\n\nHallo Max,\n\nGruß\nAlice"`; banner prefix has 10 hyphens and suffix 9 |
+| | `testForwardText` | source of the reply test with `text: "Hallo Max,\n\nGruß\nAlice"` | `"---------- Forwarded message ---------\nFrom: Alice Müller <alice@example.com>\nDate: Thu, Sep 10, 2026 at 9:12\u{202F}AM\nSubject: Angebot für die Erweiterung\nTo: Max Mustermann <max.mustermann@example.com>\nCc: Carol Chen <carol@partner.example>\n\n\nHallo Max,\n\nGruß\nAlice"`; banner prefix has 10 hyphens and suffix 9 |
 | | `testTextFromHTML` | the 4 examples of §4.17.6 plus `"<p>x&#252;y&#x41;&unknown;</p>"` | exact strings; last → `"xüyA&unknown;"` |
 | `OutgoingBodiesTests.swift` | `testEscape` | `"a & <b> \"c\" 'd'"` | `"a &amp; &lt;b&gt; &quot;c&quot; 'd'"` |
 | | `testWrapperAndLines` | `typed: "Hi <Bob>\n\nBye"`, default style | exact string of §4.18; `typed: ""` → `<div dir="ltr" class="minimail_default" style="…"><div><br></div></div>` |

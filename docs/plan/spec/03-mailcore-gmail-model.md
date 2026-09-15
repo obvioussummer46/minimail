@@ -652,7 +652,7 @@ All JSON fixtures are valid JSON (`python3 -m json.tool` passes). Whitespace is 
 
 `profile.json`
 ```json
-{"emailAddress":"user@newtelco.de","messagesTotal":12345,"threadsTotal":6789,"historyId":"1234567"}
+{"emailAddress":"user@example.com","messagesTotal":12345,"threadsTotal":6789,"historyId":"1234567"}
 ```
 `labels.list.json` (`[gmail-api §10]`)
 ```json
@@ -698,8 +698,8 @@ All JSON fixtures are valid JSON (`python3 -m json.tool` passes). Whitespace is 
 `sendas.list.json`
 ```json
 {"sendAs":[
- {"sendAsEmail":"user@newtelco.de","displayName":"Max Mustermann","signature":"<div dir=\"ltr\">Max Mustermann<br>newtelco</div>","isPrimary":true,"isDefault":true,"verificationStatus":"accepted"},
- {"sendAsEmail":"m.mustermann@newtelco.de","displayName":"Max Mustermann","treatAsAlias":true,"verificationStatus":"accepted"}]}
+ {"sendAsEmail":"user@example.com","displayName":"Max Mustermann","signature":"<div dir=\"ltr\">Max Mustermann<br>example</div>","isPrimary":true,"isDefault":true,"verificationStatus":"accepted"},
+ {"sendAsEmail":"m.mustermann@example.com","displayName":"Max Mustermann","treatAsAlias":true,"verificationStatus":"accepted"}]}
 ```
 
 ### 5.3 Fixture contents — history (`[gmail-api §13]`; consumed by module 07's `HistoryReducerTests` with the semantics noted)
@@ -796,7 +796,7 @@ All JSON fixtures are valid JSON (`python3 -m json.tool` passes). Whitespace is 
 {"id":"m-plain","threadId":"t-plain","labelIds":["INBOX","UNREAD"],"snippet":"Hi Bob &amp; team, it&#39;s done.","historyId":"1001","internalDate":"1757488353000",
  "payload":{"mimeType":"text/plain","headers":[
   {"name":"From","value":"Alice <alice@example.com>"},
-  {"name":"To","value":"user@newtelco.de"},
+  {"name":"To","value":"user@example.com"},
   {"name":"Subject","value":"Plain hello"},
   {"name":"Date","value":"Thu, 10 Sep 2026 09:12:33 +0200"},
   {"name":"Message-ID","value":"<m-plain@example.com>"}]}}
@@ -806,7 +806,7 @@ All JSON fixtures are valid JSON (`python3 -m json.tool` passes). Whitespace is 
 {"id":"m-multi","threadId":"t-multi","labelIds":["INBOX"],"snippet":"Invoice attached.","historyId":"1002","internalDate":"1757490000000",
  "payload":{"mimeType":"multipart/mixed","headers":[
   {"name":"From","value":"Alice <alice@example.com>"},
-  {"name":"To","value":"user@newtelco.de, Bob <bob@example.com>"},
+  {"name":"To","value":"user@example.com, Bob <bob@example.com>"},
   {"name":"Cc","value":"carol@example.com"},
   {"name":"Reply-To","value":"Alice Support <support@example.com>"},
   {"name":"Subject","value":"Re: Invoice 42"},
@@ -830,7 +830,7 @@ All JSON fixtures are valid JSON (`python3 -m json.tool` passes). Whitespace is 
 {"id":"m-folded","threadId":"t-folded","labelIds":["INBOX"],"snippet":"folded","historyId":"1004","internalDate":"1757492000000",
  "payload":{"mimeType":"multipart/alternative","headers":[
   {"name":"From","value":"Dave <dave@example.com>"},
-  {"name":"To","value":"user@newtelco.de"},
+  {"name":"To","value":"user@example.com"},
   {"name":"Subject","value":"Long subject\r\n continued here"},
   {"name":"Message-ID","value":"<m-folded@example.com>"},
   {"name":"In-Reply-To","value":"<r4@example.com> <r3@example.com>"},
@@ -853,7 +853,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"a1","threadId":"a1","labelIds":["UNREAD","INBOX"],"snippet":"Hi Bob &amp; team, it&#39;s done.","historyId":"1101","internalDate":"1757488353000","sizeEstimate":812,
  "payload":{"partId":"","mimeType":"text/plain","filename":"",
-  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"Plain hello"},
+  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"Plain hello"},
              {"name":"Date","value":"Thu, 10 Sep 2026 09:12:33 +0200"},{"name":"Message-ID","value":"<a1@example.com>"},{"name":"Content-Type","value":"text/plain"}],
   "body":{"size":28,"data":"SGkgQm9iICYgdGVhbSwNCml0J3MgZG9uZS4NCg"}}}
 ```
@@ -861,7 +861,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"b1","threadId":"b1","labelIds":["INBOX"],"snippet":"Grüße aus Köln","historyId":"1102","internalDate":"1757489000000","sizeEstimate":2100,
  "payload":{"partId":"","mimeType":"multipart/alternative","filename":"",
-  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"Alternative"},
+  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"Alternative"},
              {"name":"Message-ID","value":"<b1@example.com>"},{"name":"Content-Type","value":"multipart/alternative; boundary=\"000000000000abce\""}],
   "body":{"size":0},
   "parts":[
@@ -874,7 +874,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"c1","threadId":"c1","labelIds":["INBOX","UNREAD"],"snippet":"Invoice attached.","historyId":"1103","internalDate":"1757490000000","sizeEstimate":45210,
  "payload":{"partId":"","mimeType":"multipart/mixed","filename":"",
-  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Cc","value":"bob@example.com"},{"name":"Subject","value":"Invoice 42"},
+  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@example.com"},{"name":"Cc","value":"bob@example.com"},{"name":"Subject","value":"Invoice 42"},
              {"name":"Message-ID","value":"<c1@example.com>"},{"name":"Content-Type","value":"multipart/mixed; boundary=\"000000000000abcd\""}],
   "body":{"size":0},
   "parts":[
@@ -893,7 +893,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"d1","threadId":"d1","labelIds":["INBOX"],"snippet":"Logo below","historyId":"1104","internalDate":"1757491000000","sizeEstimate":9000,
  "payload":{"partId":"","mimeType":"multipart/related","filename":"",
-  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"Inline logo"},{"name":"Message-ID","value":"<d1@example.com>"}],
+  "headers":[{"name":"From","value":"Alice <alice@example.com>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"Inline logo"},{"name":"Message-ID","value":"<d1@example.com>"}],
   "body":{"size":0},
   "parts":[
    {"partId":"0","mimeType":"multipart/alternative","filename":"","headers":[],"body":{"size":0},
@@ -908,7 +908,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"e1","threadId":"e1","labelIds":["INBOX"],"snippet":"Grüße – Outlook","historyId":"1105","internalDate":"1757492000000","sizeEstimate":20000,
  "payload":{"partId":"","mimeType":"multipart/mixed","filename":"",
-  "headers":[{"name":"From","value":"Erika Beispiel <erika@example.org>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"AW: Angebot"},{"name":"Message-ID","value":"<e1@example.org>"}],
+  "headers":[{"name":"From","value":"Erika Beispiel <erika@example.org>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"AW: Angebot"},{"name":"Message-ID","value":"<e1@example.org>"}],
   "body":{"size":0},
   "parts":[
    {"partId":"0","mimeType":"multipart/related","filename":"","headers":[{"name":"Content-Type","value":"multipart/related; boundary=\"rel\"; type=\"multipart/alternative\""}],"body":{"size":0},
@@ -928,7 +928,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"f1","threadId":"f1","labelIds":["INBOX"],"snippet":"Signed hello","historyId":"1106","internalDate":"1757493000000","sizeEstimate":6000,
  "payload":{"partId":"","mimeType":"multipart/signed","filename":"",
-  "headers":[{"name":"From","value":"Signer <signer@example.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"Signed"},{"name":"Message-ID","value":"<f1@example.com>"},
+  "headers":[{"name":"From","value":"Signer <signer@example.com>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"Signed"},{"name":"Message-ID","value":"<f1@example.com>"},
              {"name":"Content-Type","value":"multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"sig\""}],
   "body":{"size":0},
   "parts":[
@@ -946,7 +946,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"g1","threadId":"g1","labelIds":["INBOX","UNREAD"],"snippet":"Delivery to the following recipient failed permanently: nobody@example.com","historyId":"1107","internalDate":"1757494000000","sizeEstimate":7000,
  "payload":{"partId":"","mimeType":"multipart/report","filename":"",
-  "headers":[{"name":"From","value":"Mail Delivery Subsystem <mailer-daemon@googlemail.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"Delivery Status Notification (Failure)"},
+  "headers":[{"name":"From","value":"Mail Delivery Subsystem <mailer-daemon@googlemail.com>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"Delivery Status Notification (Failure)"},
              {"name":"Message-ID","value":"<g1@mail.gmail.com>"},{"name":"Content-Type","value":"multipart/report; boundary=\"rep\"; report-type=delivery-status"}],
   "body":{"size":0},
   "parts":[
@@ -961,7 +961,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"h1","threadId":"h1","labelIds":["INBOX"],"snippet":"See HTML version.","historyId":"1108","internalDate":"1757495000000","sizeEstimate":260000,
  "payload":{"partId":"","mimeType":"multipart/alternative","filename":"",
-  "headers":[{"name":"From","value":"Newsletter <news@example.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"Big newsletter"},{"name":"Message-ID","value":"<h1@example.com>"}],
+  "headers":[{"name":"From","value":"Newsletter <news@example.com>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"Big newsletter"},{"name":"Message-ID","value":"<h1@example.com>"}],
   "body":{"size":0},
   "parts":[
    {"partId":"0","mimeType":"text/plain","filename":"","headers":[{"name":"Content-Type","value":"text/plain; charset=\"UTF-8\""}],"body":{"size":19,"data":"U2VlIEhUTUwgdmVyc2lvbi4NCg"}},
@@ -971,7 +971,7 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
 ```json
 {"id":"L1","threadId":"L1","labelIds":["INBOX"],"snippet":"Lorem ipsum","historyId":"1109","internalDate":"1757496000000","sizeEstimate":910000,
  "payload":{"partId":"","mimeType":"text/plain","filename":"",
-  "headers":[{"name":"From","value":"Log Bot <bot@example.com>"},{"name":"To","value":"user@newtelco.de"},{"name":"Subject","value":"Huge log"},{"name":"Message-ID","value":"<L1@example.com>"},
+  "headers":[{"name":"From","value":"Log Bot <bot@example.com>"},{"name":"To","value":"user@example.com"},{"name":"Subject","value":"Huge log"},{"name":"Message-ID","value":"<L1@example.com>"},
              {"name":"Content-Type","value":"text/plain; charset=\"iso-8859-1\""}],
   "body":{"attachmentId":"ANG-txt-L1","size":900000}}}
 ```
@@ -981,8 +981,8 @@ Every `data` value below was produced by `base64.urlsafe_b64encode(bytes).rstrip
  <the "full.a.json" object, unchanged>,
  {"id":"a2","threadId":"a1","labelIds":["SENT"],"snippet":"Reply body","historyId":"1150","internalDate":"1757500000000","sizeEstimate":1500,
   "payload":{"partId":"","mimeType":"multipart/alternative","filename":"",
-   "headers":[{"name":"From","value":"Max Mustermann <user@newtelco.de>"},{"name":"To","value":"Alice <alice@example.com>"},{"name":"Subject","value":"Re: Plain hello"},
-              {"name":"Date","value":"Thu, 10 Sep 2026 12:26:40 +0200"},{"name":"Message-ID","value":"<a2@newtelco.de>"},{"name":"In-Reply-To","value":"<a1@example.com>"},{"name":"References","value":"<a1@example.com>"}],
+   "headers":[{"name":"From","value":"Max Mustermann <user@example.com>"},{"name":"To","value":"Alice <alice@example.com>"},{"name":"Subject","value":"Re: Plain hello"},
+              {"name":"Date","value":"Thu, 10 Sep 2026 12:26:40 +0200"},{"name":"Message-ID","value":"<a2@example.com>"},{"name":"In-Reply-To","value":"<a1@example.com>"},{"name":"References","value":"<a1@example.com>"}],
    "body":{"size":0},
    "parts":[
     {"partId":"0","mimeType":"text/plain","filename":"","headers":[{"name":"Content-Type","value":"text/plain; charset=\"UTF-8\""}],"body":{"size":12,"data":"UmVwbHkgYm9keQ0K"}},
@@ -1135,7 +1135,7 @@ All tests run with `cd Packages/MailCore && swift test` on Linux and macOS (`mak
 | | `testStringUInt64EncodesAsString` | `JSONEncoder().encode(W(v: 42))` | bytes == `{"v":"42"}` |
 | | `testStringUInt64ComparableAndLiteral` | `let a: StringUInt64 = 5; let b = StringUInt64(7)` | `a < b`, `max(a, b) == b`, `a == 5` |
 | | `testStringInt64DecodesStringAndNumber` | `{"v":"1757488353000"}` and `{"v":-5}` | `1_757_488_353_000`, `-5`; `{"v":"1e3"}` throws |
-| | `testProfileDecodes` | `gmailJSON("profile.json", as: GmailProfile.self)` | `emailAddress == "user@newtelco.de"`, `historyId.value == 1_234_567` |
+| | `testProfileDecodes` | `gmailJSON("profile.json", as: GmailProfile.self)` | `emailAddress == "user@example.com"`, `historyId.value == 1_234_567` |
 | | `testLabelsListDecodes` | `labels.list.json` → `GmailListLabelsResponse` | `labels?.count == 5`; `labels![0] == GmailLabel(id: "INBOX", name: "INBOX", type: "system", messageListVisibility: "hide", labelListVisibility: "labelShow")`; `labels![1].messageListVisibility == nil`; `labels![4].type == "user"`, `.name == "Customers/ACME"`, `.color == nil` |
 | | `testLabelGetDecodes` | `labels.get.inbox.json`, `labels.get.user.json` → `GmailLabel` | inbox: `threadsUnread == 5`, `color == nil`; user: `color == GmailLabelColor(textColor: "#ffffff", backgroundColor: "#4a86e8")`, `messagesUnread == 3`, `threadsTotal == 44` |
 | | `testMessagesListDecodes` | both `messages.list.inbox.*.json` | page 1: `messages == [GmailMessageRef(id:"a1",threadId:"a1"), (b1), (c1)]`, `nextPageToken == "page-2"`, `resultSizeEstimate == 201`; page 2: `messages == nil`, `nextPageToken == nil` |
@@ -1150,8 +1150,8 @@ All tests run with `cd Packages/MailCore && swift test` on Linux and macOS (`mak
 | | `testUnknownKeysIgnored` | decode `{"id":"x","threadId":"x","classificationLabelValues":[{"a":1}],"raw":"AA","payload":{"mimeType":"text/plain","zzz":{"deep":[1,2]}}}` as `GmailMessage` | decodes; `payload!.mimeType == "text/plain"` |
 | | `testModifyAndSendRequestEncoding` | `JSONEncoder` with `[.sortedKeys, .withoutEscapingSlashes]` | the four rows of §5.1 byte-exact |
 | | `testPartHeaderLookup` | `GmailPart(headers: [("Message-Id","<x@y>"), ("References"," <a@b>\r\n <c@d>\t"), ("Subject","first"), ("subject","second")])` | `header("message-id") == "<x@y>"`, `header("References") == "<a@b> <c@d>"`, `header("SUBJECT") == "first"`, `header("Cc") == nil`; `GmailPart().header("From") == nil` |
-| `Tests/MailCoreTests/MessageParserTests.swift` | `testMetadataPlain` | parse `metadata.plain.json` | `id == "m-plain"`, `threadId == "t-plain"`, `historyId == 1001`, `internalDate == 1_757_488_353_000`, `labelIds == ["INBOX","UNREAD"]`, `snippet == "Hi Bob & team, it's done."`, `headers.from == Mailbox(name: "Alice", addr: "alice@example.com")`, `headers.to == [Mailbox(name: nil, addr: "user@newtelco.de")]`, `headers.cc == []`, `headers.replyTo == []`, `headers.subject == "Plain hello"`, `headers.messageID == "<m-plain@example.com>"`, `headers.inReplyTo == nil`, `headers.references == []`, `topMimeType == "text/plain"`, `body == nil`, `attachments == []` |
-| | `testMetadataMultipartHeaders` | parse `metadata.multipart.json` | `headers.to == [Mailbox(nil,"user@newtelco.de"), Mailbox("Bob","bob@example.com")]`, `cc == [Mailbox(nil,"carol@example.com")]`, `replyTo == [Mailbox("Alice Support","support@example.com")]`, `subject == "Re: Invoice 42"`, `messageID == "<m-multi@example.com>"` (lower-case `Message-Id` header), `inReplyTo == "<m-plain@example.com>"`, `references == ["<root@example.com>","<m-plain@example.com>"]`, `topMimeType == "multipart/mixed"`, `body == nil` |
+| `Tests/MailCoreTests/MessageParserTests.swift` | `testMetadataPlain` | parse `metadata.plain.json` | `id == "m-plain"`, `threadId == "t-plain"`, `historyId == 1001`, `internalDate == 1_757_488_353_000`, `labelIds == ["INBOX","UNREAD"]`, `snippet == "Hi Bob & team, it's done."`, `headers.from == Mailbox(name: "Alice", addr: "alice@example.com")`, `headers.to == [Mailbox(name: nil, addr: "user@example.com")]`, `headers.cc == []`, `headers.replyTo == []`, `headers.subject == "Plain hello"`, `headers.messageID == "<m-plain@example.com>"`, `headers.inReplyTo == nil`, `headers.references == []`, `topMimeType == "text/plain"`, `body == nil`, `attachments == []` |
+| | `testMetadataMultipartHeaders` | parse `metadata.multipart.json` | `headers.to == [Mailbox(nil,"user@example.com"), Mailbox("Bob","bob@example.com")]`, `cc == [Mailbox(nil,"carol@example.com")]`, `replyTo == [Mailbox("Alice Support","support@example.com")]`, `subject == "Re: Invoice 42"`, `messageID == "<m-multi@example.com>"` (lower-case `Message-Id` header), `inReplyTo == "<m-plain@example.com>"`, `references == ["<root@example.com>","<m-plain@example.com>"]`, `topMimeType == "multipart/mixed"`, `body == nil` |
 | | `testMetadataNonASCII` | parse `metadata.nonascii.json` | `from == Mailbox("Alice Müller","alice@example.com")`, `to == [Mailbox("Müller, Bob","bob@example.com"), Mailbox("Keld Jørn Simonsen","keld@example.com")]`, `subject == "Grüße aus Köln"`, `snippet == "Grüße aus Köln & Umgebung"`, `labelIds == ["INBOX","UNREAD","Label_12"]` |
 | | `testMetadataFoldedReferences` | parse `metadata.folded-references.json` | `references == ["<r1@example.com>","<r2@example.com>","<r3@example.com>","<r4@example.com>"]`, `inReplyTo == "<r4@example.com>"`, `subject == "Long subject continued here"` |
 | | `testMetadataNoMessageID` | parse `metadata.no-message-id.json` | `labelIds == []`, `snippet == ""`, `subject == ""`, `messageID == nil`, `inReplyTo == nil`, `references == []`, `from == Mailbox(nil,"noreply@example.com")`, `to == []`, `cc == []`, `topMimeType == "text/html"`, `body == nil` |

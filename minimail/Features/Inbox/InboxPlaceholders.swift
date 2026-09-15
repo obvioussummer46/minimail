@@ -1,0 +1,80 @@
+import MailCore
+import SwiftUI
+
+// Each struct carries the FINAL signature of the screen it stands in for. Module 10 deleted `ThreadScreen`
+// and 11 deleted `ComposeScreen`; 12 deletes `LabelsScreen`, 13 deletes `SettingsScreen` and then the file.
+
+/// Replaced by module 12 (`minimail/Features/Labels/LabelsScreen.swift`).
+/// Contract for 12: call `onSelect(scope)` exactly once per selection and do NOT dismiss the sheet.
+struct LabelsScreen: View {
+    let onSelect: (InboxScope) -> Void
+    init(onSelect: @escaping (InboxScope) -> Void) { self.onSelect = onSelect }
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Mailboxes") {
+                    Button {
+                        onSelect(.inbox)
+                    } label: {
+                        Label("Inbox", systemImage: "tray")
+                    }
+                    Button {
+                        onSelect(.today)
+                    } label: {
+                        Label("Today", systemImage: "sun.max")
+                    }
+                }
+            }
+            .navigationTitle("Labels")
+        }
+    }
+}
+
+/// Replaced by module 13 (`minimail/Features/Settings/SettingsScreen.swift`).
+struct SettingsScreen: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.dismiss) private var dismiss
+    init() {}
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Account") {
+                    Text(env.auth.state.email ?? "—")
+                    Button("Sign out", role: .destructive) {
+                        // Dismiss the sheet first so the switch to SignInScreen is clean, and forget the remembered
+                        // address so the next sign-in shows Google's account chooser (lets you pick another account).
+                        dismiss()
+                        env.settings.update { $0.lastSignedInEmail = nil }
+                        Task { await env.auth.signOut() }
+                    }
+                    .accessibilityIdentifier("placeholder.signout")
+                }
+                // [13, partial] The signature is the one settings row that is real: the editor below it ships,
+                // the rest of module 13 (theme picker, compose style, badge, Advanced) is still the placeholder.
+                Section {
+                    NavigationLink {
+                        SignatureEditorScreen()
+                    } label: {
+                        LabeledContent("Signature", value: SignatureSummary.line(env.settings.settings.signatureHTML))
+                    }
+                    .accessibilityIdentifier("settings.signature")
+                    Toggle("Use Signature", isOn: signatureEnabled)
+                        .accessibilityIdentifier("settings.signatureEnabled")
+                } header: {
+                    Text("Signature")
+                } footer: {
+                    Text(SettingsStrings.signatureFooter)
+                }
+            }
+            .navigationTitle("Settings")
+        }
+    }
+
+    /// Writes through `SettingsStore` on every toggle; 13's `SettingsStore.binding(_:)` replaces this.
+    private var signatureEnabled: Binding<Bool> {
+        Binding(
+            get: { env.settings.settings.signatureEnabled },
+            set: { value in env.settings.update { $0.signatureEnabled = value } }
+        )
+    }
+}

@@ -5,8 +5,8 @@ import XCTest
 final class ReplyAllTests: XCTestCase {
 
     private let me = SelfIdentity(
-        primary: Mailbox(name: "Max Mustermann", addr: "max.mustermann@newtelco.de"),
-        allAddresses: ["m.mustermann@newtelco.de"]
+        primary: Mailbox(name: "Max Mustermann", addr: "max.mustermann@example.com"),
+        allAddresses: ["m.mustermann@example.com"]
     )
 
     private func alice(_ name: String? = "Alice") -> Mailbox { Mailbox(name: name, addr: "alice@example.com") }
@@ -14,8 +14,8 @@ final class ReplyAllTests: XCTestCase {
     private func carol() -> Mailbox { Mailbox(name: "Carol", addr: "carol@partner.example") }
 
     func testIdentityAlwaysContainsPrimary() {
-        XCTAssertTrue(me.allAddresses.contains("max.mustermann@newtelco.de"))
-        XCTAssertTrue(me.allAddresses.contains("m.mustermann@newtelco.de"))
+        XCTAssertTrue(me.allAddresses.contains("max.mustermann@example.com"))
+        XCTAssertTrue(me.allAddresses.contains("m.mustermann@example.com"))
     }
 
     func testSenderGoesToToAndMyselfIsRemoved() {
@@ -42,7 +42,7 @@ final class ReplyAllTests: XCTestCase {
     }
 
     func testAliasIsRemovedToo() {
-        let alias = Mailbox(name: nil, addr: "M.Mustermann@newtelco.de")
+        let alias = Mailbox(name: nil, addr: "M.Mustermann@example.com")
         let result = ReplyAll.recipients(from: alice(), replyTo: [], to: [alias, bob()], cc: [], me: me)
         XCTAssertEqual(result.to.map(\.addr), ["alice@example.com", "bob@example.com"])
     }
@@ -81,7 +81,7 @@ final class ReplyAllTests: XCTestCase {
 
     func testNoteToSelfNeverHasEmptyTo() {
         let result = ReplyAll.recipients(from: me.primary, replyTo: [], to: [me.primary], cc: [], me: me)
-        XCTAssertEqual(result.to.map(\.addr), ["max.mustermann@newtelco.de"])
+        XCTAssertEqual(result.to.map(\.addr), ["max.mustermann@example.com"])
         XCTAssertTrue(result.cc.isEmpty)
     }
 
@@ -162,10 +162,10 @@ final class OutgoingBodiesTests: XCTestCase {
         XCTAssertEqual(
             OutgoingBodies.text(
                 typed: "Hallo Alice,\n\nja.\n\nViele Grüße\nMax",
-                signatureText: "Max Mustermann\nnewtelco GmbH",
+                signatureText: "Max Mustermann\nExample GmbH",
                 quoteText: "On … wrote:\n> Hallo"
             ),
-            "Hallo Alice,\n\nja.\n\nViele Grüße\nMax\n\n-- \nMax Mustermann\nnewtelco GmbH\n\nOn … wrote:\n> Hallo"
+            "Hallo Alice,\n\nja.\n\nViele Grüße\nMax\n\n-- \nMax Mustermann\nExample GmbH\n\nOn … wrote:\n> Hallo"
         )
         XCTAssertEqual(
             OutgoingBodies.text(typed: "Hi\n\n", signatureText: nil, quoteText: nil),
@@ -186,9 +186,9 @@ final class PlainTextHTMLTests: XCTestCase {
 
     func testBareWWWGetsScheme() {
         XCTAssertEqual(
-            PlainTextHTML.convert("(www.newtelco.de)"),
+            PlainTextHTML.convert("(www.example.com)"),
             "<div class=\"mm-plaintext\"><div>("
-                + "<a href=\"http://www.newtelco.de\">www.newtelco.de</a>)</div></div>"
+                + "<a href=\"http://www.example.com\">www.example.com</a>)</div></div>"
         )
     }
 
@@ -217,7 +217,7 @@ final class QuotingTests: XCTestCase {
             author: Mailbox(name: "Alice Müller", addr: "alice@example.com"),
             date: Date(timeIntervalSince1970: 1_789_024_353),
             subject: "Angebot",
-            to: [Mailbox(name: "Max", addr: "max.mustermann@newtelco.de")],
+            to: [Mailbox(name: "Max", addr: "max.mustermann@example.com")],
             cc: [],
             html: html,
             text: text
@@ -263,7 +263,7 @@ final class QuotingTests: XCTestCase {
         XCTAssertTrue(html.contains("---------- Forwarded message ---------<br>"))
         XCTAssertTrue(html.contains("From: <strong class=\"gmail_sendername\" dir=\"auto\">Alice Müller</strong>"))
         XCTAssertTrue(html.contains("Subject: Angebot<br>"))
-        XCTAssertTrue(html.contains("To: Max &lt;<a href=\"mailto:max.mustermann@newtelco.de\">"))
+        XCTAssertTrue(html.contains("To: Max &lt;<a href=\"mailto:max.mustermann@example.com\">"))
         XCTAssertFalse(html.contains("Cc:"))
     }
 
@@ -284,10 +284,10 @@ final class QuotingTests: XCTestCase {
         XCTAssertEqual(Quoting.textFromHTML("<style>p{}</style>x<script>1</script>"), "x")
         XCTAssertEqual(
             Quoting.textFromHTML(
-                "<div style=\"x\">Max Mustermann<br>newtelco GmbH<br>"
-                    + "<a href=\"https://www.newtelco.de\">www.newtelco.de</a></div>"
+                "<div style=\"x\">Max Mustermann<br>Example GmbH<br>"
+                    + "<a href=\"https://www.example.com\">www.example.com</a></div>"
             ),
-            "Max Mustermann\nnewtelco GmbH\nwww.newtelco.de"
+            "Max Mustermann\nExample GmbH\nwww.example.com"
         )
     }
 

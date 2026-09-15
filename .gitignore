@@ -8,3 +8,6 @@ DerivedData/
 *.xcresult
 .swiftpm/
 .DS_Store
+
+# Local OAuth/signing overrides (never committed)
+Config/Secrets.xcconfig
