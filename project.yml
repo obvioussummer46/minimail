@@ -74,10 +74,6 @@ targets:
       path: minimail/minimail.entitlements
       properties:
         keychain-access-groups: ["$(AppIdentifierPrefix)com.minimail"]
-    scheme:
-      testTargets: [minimailTests]
-      gatherCoverageData: true
-      environmentVariables: { MINIMAIL_TESTING: "1" }
   minimailTests:
     type: bundle.unit-test
     platform: iOS
@@ -96,3 +92,24 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/minimail.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/minimail
         BUNDLE_LOADER: $(TEST_HOST)
+schemes:
+  minimail:
+    build:
+      targets:
+        minimail: all
+    run:
+      config: Debug
+    # MINIMAIL_TESTING is scoped to the test action only. On the run/profile actions it would make the app
+    # launch as the test host (OfflineURLProtocol blocks all network → the app shows "Offline").
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets: [minimailTests]
+      environmentVariables:
+        MINIMAIL_TESTING: "1"
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
