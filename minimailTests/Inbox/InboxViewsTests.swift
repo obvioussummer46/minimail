@@ -81,6 +81,21 @@ nonisolated final class InboxViewsTests: XCTestCase {
         XCTAssertNotEqual(ActiveSheet.labels, ActiveSheet.settings)
     }
 
+    func testMailboxDotsSlotFollowsScope() {
+        XCTAssertEqual(MailboxDots.Slot(scope: .inbox), .inbox)
+        XCTAssertEqual(MailboxDots.Slot(scope: .today), .today)
+        XCTAssertEqual(MailboxDots.Slot(scope: .label(id: "Label_12")), .labels)
+    }
+
+    func testMailboxDotsKeepsTheWordmarkRhythm() {
+        let centers = MailboxDots.centers
+        XCTAssertEqual(centers.count, 3)
+        let gaps = zip(centers, centers.dropFirst()).map { $1 - $0 }
+        // The tittles sit over letters 2, 4 and 7 of "minimail", so the gaps run 2:3. Evenly spaced dots
+        // are an ellipsis, not the mark.
+        XCTAssertEqual(gaps[1] / gaps[0], 1.5, accuracy: 0.001)
+    }
+
     // MARK: builders
 
     static func job(subject: String, to: [Mailbox], cc: [Mailbox]) -> SendJob {

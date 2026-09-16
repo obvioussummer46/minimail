@@ -404,3 +404,40 @@ style, badge, Advanced, sign-out) on the placeholder screen.
 
 9. §4.9's `Result<String, any Error>` across a `Task.detached` boundary (deviation 1).
 10. §6.10's `Section(_:content:footer:)` (deviation 3) — the second occurrence of spec error 7.
+
+
+## Branding: the three-dot mark (no spec module)
+
+The plan never specified a logo — `AppIcon.png` shipped as a placeholder from module 01. The mark adopted
+here comes from the wordplay in the name: `minimal` carries two tittles, `minimail` three, so the mark is
+the wordmark reduced to those three dots with the accent on the one the name gained. That accent dot is the
+same colour `ThreadRowView` paints against an unread thread, so the icon and the list share one shape.
+
+The tittles sit over letters 2, 4 and 7, so the gaps run short-then-long. Both the icon and the toolbar
+control keep that 2:3 ratio; evenly spaced dots are an ellipsis, and `testMailboxDotsKeepsTheWordmarkRhythm`
+guards it.
+
+- `scripts/make-appicon.py` renders `AppIcon.png` (opaque 1024 square, no corner rounding — iOS masks it).
+  It is a dependency-free PNG writer because the build container has neither Pillow nor ImageMagick, and it
+  keeps the asset reproducible rather than committing an opaque binary nobody can regenerate. `make appicon`
+  runs it. The icon is a single universal image, matching the existing `Contents.json`; iOS 18 dark and
+  tinted variants were left out deliberately, since nothing here can verify an asset-catalogue change builds.
+- `minimail/Features/Inbox/MailboxDots.swift` is the mark at control size. It replaces `line.3.horizontal`
+  as the leading toolbar label in `InboxScreen`, and the filled dot shows the active scope — the switcher's
+  menu already had exactly three destinations (Inbox, Today, Labels), so the state cost nothing.
+  `MailboxDots.Slot` and `centers` are `nonisolated` so `InboxViewsTests` (a nonisolated class) can reach
+  them, following `ThreadRowView.accessibilityLabel(for:)`.
+
+### Open risk
+
+Three dots is iOS's *overflow* idiom, and this button is navigation rather than more-actions. Device
+checklist D28 is the test: if someone reaches for it expecting Delete and Move, the toolbar label reverts to
+`line.3.horizontal` and the mark stays in the app icon only. D27 covers the icon's white field against a
+light wallpaper; study 6 in `docs/logo` (blue field, white dots) is the fallback and is a colour change at
+the top of the render script.
+
+### Not verified here
+
+No Swift toolchain and no Mac in this container: the view, the isolation annotations and the two new tests
+are unbuilt and unrun. CI is the compiler, as everywhere else in this file.
+

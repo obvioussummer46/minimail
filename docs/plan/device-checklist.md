@@ -13,7 +13,7 @@ For each item: **do** the steps, confirm the **expect**, and if it fails follow 
 
 ## Inbox / labels
 - **D5 First sync.** _Expect:_ inbox fills within a couple of seconds; unread dots correct; date labels sensible in the device locale/timezone.
-- **D6 Mailbox switch.** Tap the top-left mailbox menu → Today, then back to Inbox. _Expect:_ works even when **Today is empty** (regression guard for the empty-Today trap). Also try the title menu.
+- **D6 Mailbox switch.** Tap the top-left mailbox menu (the three-dot mark) → Today, then back to Inbox. _Expect:_ works even when **Today is empty** (regression guard for the empty-Today trap); the filled dot moves to match the mailbox you are in. Also try the title menu.
 - **D7 Labels sheet.** Open Labels; tap a coloured user label. _Expect:_ Gmail colours render; server unread counts show; "Counts from Gmail · updated …" footer; tapping a label filters the list and hydrates.
 - **D8 Pull to refresh.** _Expect:_ spinner, counts update, no duplicate rows.
 - **D9 Preview lines.** Settings → Reading → Preview Lines = 5. _Expect:_ inbox snippets grow to 5 lines; setting persists across relaunch.
@@ -42,3 +42,5 @@ For each item: **do** the steps, confirm the **expect**, and if it fails follow 
 - **D24 Full resync.** Settings → Advanced → Full Resync Now. _Expect:_ confirmation, then the inbox re-downloads; History ID updates.
 - **D25 Background refresh.** Background the app, wait, foreground. _Expect:_ new mail appears without a manual pull (best-effort; iOS schedules it).
 - **D26 Dynamic Type.** Raise the system text size. _Expect:_ rows and thread text scale; no clipping.
+- **D27 App icon.** Look at the icon on the home screen, in Settings → minimail, and in a notification. _Expect:_ the three dots read at every size and the accent dot is distinguishable from the two grey ones; the white field is not lost against a light wallpaper. _Fallback:_ the inverted mark (blue field, white dots) is study 6 in `docs/logo` and is a one-value change in `scripts/make-appicon.py`.
+- **D28 Three dots as navigation.** Hand the phone to someone who has not seen the app and ask them to switch mailboxes. _Expect:_ they tap the three dots. Three dots is iOS's *overflow* idiom and this button is navigation, so watch for anyone expecting Delete/Move instead. _Fallback:_ revert the toolbar label to `line.3.horizontal` and keep the mark in the app icon only — `MailboxDots` stays useful nowhere else, so delete it with the revert.

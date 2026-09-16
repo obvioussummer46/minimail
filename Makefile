@@ -11,7 +11,7 @@ XCB     := xcbeautify --renderer $(if $(GITHUB_ACTIONS),github-actions,terminal)
 # the whole job: 120 s per test, enforced by XCTest.
 TIMEOUTS := -test-timeouts-enabled YES -default-test-execution-time-allowance 120
 
-.PHONY: core-test core-test-nohtml gen build test-app test-one lint format clean qa
+.PHONY: core-test core-test-nohtml gen build test-app test-one lint format appicon clean qa
 
 core-test:                      # Linux or macOS, seconds
 	cd Packages/MailCore && swift test
@@ -38,6 +38,8 @@ lint:
 	! grep -rE "^import (UIKit|SwiftUI|GRDB|AppAuth|WebKit|Security|CoreFoundation)" Packages/MailCore/Sources
 	! grep -rE "^import SwiftSoup" Packages/MailCore/Sources/MailCore
 	! grep -rnE "Color\((red|\.white|\.black|\.blue|\.indigo|\.green|\.red)|\.tint\(\.(blue|indigo|green|red)\)" minimail/Features minimail/Web
+appicon:                        # regenerates AppIcon.png from the three-dot mark
+	python3 scripts/make-appicon.py
 format:
 	swift format --in-place --recursive minimail minimailTests Packages/MailCore/Sources Packages/MailCore/Tests
 clean:

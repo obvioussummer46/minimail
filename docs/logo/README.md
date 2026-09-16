@@ -53,6 +53,13 @@ The published canvas is assembled from these files by the `design` skill; the
 assembled page is ~2.5 MB of editor code and is deliberately not committed.
 To rebuild it, re-seed from this directory and republish.
 
-Nothing has been adopted in the app yet —
-`minimail/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png` is still the
-placeholder and the toolbar still uses `line.3.horizontal`.
+## Adopted in the app
+
+- `minimail/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png` is rendered
+  from study 1 by `scripts/make-appicon.py` (opaque 1024 square, no corner
+  rounding — iOS masks it). Re-run the script to regenerate it; switching to the
+  inverted study is a colour change at the top of that file.
+- `MailboxDots` (`minimail/Features/Inbox/MailboxDots.swift`) is the mark at
+  control size, used as the leading toolbar label in `InboxScreen`.
+
+Both carry device-checklist items D27 and D28.
