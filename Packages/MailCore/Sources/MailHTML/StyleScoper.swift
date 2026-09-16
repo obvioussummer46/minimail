@@ -17,15 +17,20 @@ public enum StyleScoper {
     }
 
     public static func scope(_ css: String, scope: String) -> String {
-        scopeRules(Array(stripComments(css).unicodeScalars), scope: scope)
+        scopeRules(Array(stripComments(css).unicodeScalars), scope: scope, depth: 0)
     }
 
     /// At-rules whose block holds ordinary rules that must be scoped in place.
     private static let conditionalAtRules: Set<String> = ["@media", "@supports", "@container", "@layer"]
 
+    /// Conditional at-rules nest, and `scopeRules` recurses once per level. Untrusted email can nest them
+    /// thousands deep to overflow the stack (far smaller on iOS than the test host), so recursion is capped and
+    /// anything nested deeper is dropped. Real email never approaches this.
+    private static let maxNestingDepth = 16
+
     // MARK: - Rules
 
-    private static func scopeRules(_ s: [Unicode.Scalar], scope: String) -> String {
+    private static func scopeRules(_ s: [Unicode.Scalar], scope: String, depth: Int) -> String {
         var out = ""
         var i = 0
         while i < s.count {
@@ -66,8 +71,8 @@ public enum StyleScoper {
 
             if preludeText.hasPrefix("@") {
                 let name = String(preludeText.prefix { !isSpace($0) && $0 != "(" }).lowercased()
-                if conditionalAtRules.contains(name) {
-                    out += preludeText + "{" + scopeRules(body, scope: scope) + "}"
+                if conditionalAtRules.contains(name), depth < maxNestingDepth {
+                    out += preludeText + "{" + scopeRules(body, scope: scope, depth: depth + 1) + "}"
                 }
                 continue
             }

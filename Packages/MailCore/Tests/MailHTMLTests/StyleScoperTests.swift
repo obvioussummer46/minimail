@@ -47,6 +47,16 @@ final class StyleScoperTests: XCTestCase {
             StyleScoper.scope(":is(.a, .b){x:y}", scope: scope), "\(scope) :is(.a, .b){x:y}")
     }
 
+    func testDeeplyNestedAtRulesDoNotOverflowStack() {
+        // Untrusted email could nest conditional at-rules thousands deep to blow the stack; recursion is capped
+        // and anything past the cap is dropped, so this returns without crashing.
+        let css = String(repeating: "@media all{", count: 50_000) + ".x{a:b}"
+            + String(repeating: "}", count: 50_000)
+        let out = StyleScoper.scope(css, scope: scope)
+        XCTAssertTrue(out.hasPrefix("@media all{"))
+        XCTAssertFalse(out.contains("\(scope) .x{a:b}"), "content past the nesting cap is dropped")
+    }
+
     func testUnbalancedInputTruncated() {
         XCTAssertEqual(StyleScoper.scope(".a{x:y", scope: scope), "")
         XCTAssertEqual(StyleScoper.scope("}}.a{x:y}", scope: scope), "\(scope) .a{x:y}")
