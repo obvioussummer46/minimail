@@ -11,7 +11,7 @@ XCB     := xcbeautify --renderer $(if $(GITHUB_ACTIONS),github-actions,terminal)
 # the whole job: 120 s per test, enforced by XCTest.
 TIMEOUTS := -test-timeouts-enabled YES -default-test-execution-time-allowance 120
 
-.PHONY: core-test core-test-nohtml gen build test-app test-one lint format clean
+.PHONY: core-test core-test-nohtml gen build test-app test-one lint format clean qa
 
 core-test:                      # Linux or macOS, seconds
 	cd Packages/MailCore && swift test
@@ -42,3 +42,6 @@ format:
 	swift format --in-place --recursive minimail minimailTests Packages/MailCore/Sources Packages/MailCore/Tests
 clean:
 	rm -rf .build $(PROJECT)
+# The automated QA gate. `fixtures-check` is intentionally omitted until the MailCore fixture catalog exists
+# (modules 02/03 inlined their fixtures); see docs/plan/spec/14-qa.md.
+qa: core-test lint test-app
