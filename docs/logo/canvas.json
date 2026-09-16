@@ -1,0 +1,12 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 600, "h": 780, "title": "A - The extra i" },
+    { "file": "DirectionB.dc.html", "x": 700, "y": 0, "w": 600, "h": 780, "title": "B - The m is the flap" },
+    { "file": "DirectionC.dc.html", "x": 0, "y": 940, "w": 600, "h": 780, "title": "C - Insertion mark" },
+    { "file": "DirectionD.dc.html", "x": 700, "y": 940, "w": 600, "h": 780, "title": "D - No envelope" }
+  ],
+  "annotations": [
+    { "id": "brief", "x": -340, "y": 0, "w": 280, "text": "minimal -> minimail\n\nFour directions for the one-letter pun. Colours are the app's own AccentColor (#007AFF light, #0A84FF dark); type is the system face the app already uses.\n\nPick one and it gets built into Main as the real 1024 icon plus the lockup." }
+  ],
+  "launch": { "view": "canvas" }
+}

@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    a { color: #007AFF; } a:hover { color: #0060DF; }
+  </style>
+</helmet>
+<div style="width: 600px; height: 780px; box-sizing: border-box; background: #F2F2F7; padding: 40px; display: flex; flex-direction: column; gap: 24px;">
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #8A8A8E;">Direction D</div>
+    <div style="font-size: 27px; font-weight: 700; letter-spacing: -0.02em; color: #1C1C1E;">No envelope</div>
+    <div style="font-size: 14px; line-height: 1.5; color: #3C3C43; max-width: 470px; text-wrap: pretty;">Take minimal literally: drop the envelope that every mail app draws and show what the app actually is &#8212; a list, with one unread dot. The dot is the only accent anywhere, and it is also the tittle the wordmark gained.</div>
+  </div>
+
+  <div style="display: flex; gap: 20px; align-items: flex-start;">
+    <div style="display: flex; flex-direction: column; gap: 9px; align-items: center;">
+      <svg width="158" height="158" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+        <circle cx="52" cy="70" r="12" fill="{{accent}}"></circle>
+        <rect x="80" y="59" width="108" height="22" rx="11" fill="#1C1C1E"></rect>
+        <rect x="80" y="109" width="108" height="22" rx="11" fill="#D1D1D6"></rect>
+        <rect x="80" y="159" width="80" height="22" rx="11" fill="#D1D1D6"></rect>
+      </svg>
+      <div style="font-size: 11px; color: #8A8A8E;">Light</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 9px; align-items: center;">
+      <svg width="158" height="158" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="240" height="240" rx="53.68" fill="#1C1C1E"></rect>
+        <circle cx="52" cy="70" r="12" fill="{{accentDark}}"></circle>
+        <rect x="80" y="59" width="108" height="22" rx="11" fill="#FFFFFF"></rect>
+        <rect x="80" y="109" width="108" height="22" rx="11" fill="#48484A"></rect>
+        <rect x="80" y="159" width="80" height="22" rx="11" fill="#48484A"></rect>
+      </svg>
+      <div style="font-size: 11px; color: #8A8A8E;">Dark</div>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 14px; justify-content: center; padding-top: 30px;">
+      <div style="display: flex; gap: 14px; align-items: flex-end;">
+        <svg width="60" height="60" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+          <circle cx="52" cy="70" r="12" fill="{{accent}}"></circle>
+          <rect x="80" y="59" width="108" height="22" rx="11" fill="#1C1C1E"></rect>
+          <rect x="80" y="109" width="108" height="22" rx="11" fill="#D1D1D6"></rect>
+          <rect x="80" y="159" width="80" height="22" rx="11" fill="#D1D1D6"></rect>
+        </svg>
+        <svg width="40" height="40" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+          <circle cx="52" cy="70" r="12" fill="{{accent}}"></circle>
+          <rect x="80" y="59" width="108" height="22" rx="11" fill="#1C1C1E"></rect>
+          <rect x="80" y="109" width="108" height="22" rx="11" fill="#D1D1D6"></rect>
+          <rect x="80" y="159" width="80" height="22" rx="11" fill="#D1D1D6"></rect>
+        </svg>
+        <svg width="29" height="29" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+          <circle cx="52" cy="70" r="12" fill="{{accent}}"></circle>
+          <rect x="80" y="59" width="108" height="22" rx="11" fill="#1C1C1E"></rect>
+          <rect x="80" y="109" width="108" height="22" rx="11" fill="#D1D1D6"></rect>
+          <rect x="80" y="159" width="80" height="22" rx="11" fill="#D1D1D6"></rect>
+        </svg>
+      </div>
+      <div style="font-size: 11px; line-height: 1.5; color: #8A8A8E;">60 &#183; 40 &#183; 29 px<br>Three bars survive the shrink; the third may need dropping</div>
+    </div>
+  </div>
+
+  <div style="height: 1px; background: #D1D1D6;"></div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 18px;">
+      <svg width="17" height="17" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="12" fill="{{accent}}"></circle></svg>
+      <div style="font-size: 48px; font-weight: 600; letter-spacing: -0.035em; color: #1C1C1E; line-height: 1;">minimail</div>
+    </div>
+    <div style="font-size: 13px; color: #8A8A8E; letter-spacing: 0.01em;">minimal &#43; <span style="color: {{accent}}; font-weight: 600;">i</span> &#8594; minimail &#8212; the gained tittle, lifted out and set beside the word</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 5px; margin-top: auto;">
+    <div style="font-size: 12px; font-weight: 600; color: #1C1C1E;">Tradeoff</div>
+    <div style="font-size: 13px; line-height: 1.5; color: #8A8A8E; max-width: 470px; text-wrap: pretty;">Truest to the product and the least ownable: bars-and-a-dot is a common icon shape, and nothing in the mark says mail to someone who has not opened the app.</div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#007AFF","section":"Color","options":["#007AFF","#5856D6","#1C1C1E","#FF3B30"]},"accentDark":{"editor":"color","default":"#0A84FF","section":"Color"},"$preview":{"width":600,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#007AFF',
+      accentDark: this.props.accentDark ?? '#0A84FF',
+    };
+  }
+}
+</script>
+</body>
+</html>
