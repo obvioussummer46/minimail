@@ -25,7 +25,7 @@ public enum SignatureSanitizer {
         guard let cleaned = try SwiftSoup.clean(fragment, "", signatureWhitelist(), Sanitizer.outputSettings()) else {
             throw SanitizerError.cleanFailed
         }
-        return Sanitizer.normalizeVoidTags(StyleScrubber.scrub(cleaned))
+        return Sanitizer.normalizeVoidTags(Sanitizer.scopeStyles(cleaned, scope: nil))
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

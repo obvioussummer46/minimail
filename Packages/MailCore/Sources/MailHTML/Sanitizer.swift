@@ -13,7 +13,7 @@ public enum SanitizerError: Error, Equatable, Sendable {
 /// The allowlist sanitizer pipeline of architecture §9.1. Pure; no I/O; no logging; safe from any actor.
 public enum Sanitizer {
     /// Bump when the pipeline output changes; 07 re-fetches bodies whose `sanitizerVersion < version` on open.
-    public static let version: Int = 1
+    public static let version: Int = 2
     /// 2 MiB; larger input throws `.tooLarge` before parsing.
     public static let maxInputBytes = 2_097_152
     /// 1×1 transparent GIF data URI; the single definition lives in `MailCore`.
@@ -36,6 +36,19 @@ public enum Sanitizer {
 
         var hasRemote = false
         var referenced = Set<String>()
+
+        // The renderer's `mm-*` classes are its own; a message must not be able to borrow them (a body dressed
+        // up as a header or an attachment chip). `mm-remote` is re-added below where it belongs.
+        for el in try doc.select("[class]") {
+            let kept = (try el.attr("class"))
+                .split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" || $0 == "\r" })
+                .filter { !$0.lowercased().hasPrefix("mm-") }
+            if kept.isEmpty {
+                try el.removeAttr("class")
+            } else {
+                try el.attr("class", kept.joined(separator: " "))
+            }
+        }
 
         let backgroundEls = try doc.select("[background]")
         let sawBackground = !backgroundEls.isEmpty()
@@ -80,7 +93,8 @@ public enum Sanitizer {
         guard let cleaned = try SwiftSoup.clean(fragment, "", whitelist(), outputSettings()) else {
             throw SanitizerError.cleanFailed
         }
-        let scrubbed = normalizeVoidTags(StyleScrubber.scrub(cleaned))
+        let scoped = scopeStyles(cleaned, scope: StyleScoper.scope(forMessageId: messageId))
+        let scrubbed = normalizeVoidTags(scoped)
         return SanitizedBody(
             html: scrubbed.trimmingCharacters(in: .whitespacesAndNewlines),
             hasRemoteImages: hasRemote, darkStrategy: strategy, referencedContentIDs: referenced)
@@ -126,6 +140,49 @@ public enum Sanitizer {
         }
         _ = try w.addEnforcedAttribute("a", "target", "_self")
         return w
+    }
+
+    /// Scrubs CSS where it lives — `<style>` blocks and `style` attributes — and, given a `scope`, confines every
+    /// `<style>` rule to it (`StyleScoper`). Prose is never touched, so a sentence containing "url(" or
+    /// "javascript:" survives intact. Runs on the cleaned fragment, whose attribute values are entity-escaped
+    /// and double-quoted.
+    static func scopeStyles(_ html: String, scope: String?) -> String {
+        var out = replacingGroup(styleBlockRegex, in: html) { css in
+            let scrubbed = StyleScrubber.scrub(css)
+            return scope.map { StyleScoper.scope(scrubbed, scope: $0) } ?? scrubbed
+        }
+        out = replacingGroup(styleAttributeRegex, in: out) { StyleScrubber.scrub($0) }
+        return out
+    }
+
+    private static let styleBlockRegex: NSRegularExpression = compile(#"(?is)<style\b[^>]*>(.*?)</style>"#)
+    private static let styleAttributeRegex: NSRegularExpression = compile(#"(?i)\sstyle="([^"]*)""#)
+
+    private static func compile(_ pattern: String) -> NSRegularExpression {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            preconditionFailure("Sanitizer pattern failed to compile: \(pattern)")
+        }
+        return regex
+    }
+
+    /// Replaces capture group 1 of every match with `transform(group)`; everything else is copied verbatim.
+    private static func replacingGroup(
+        _ regex: NSRegularExpression, in html: String, _ transform: (String) -> String
+    ) -> String {
+        let ns = html as NSString
+        let matches = regex.matches(in: html, options: [], range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { return html }
+        var out = ""
+        var cursor = 0
+        for match in matches {
+            let group = match.range(at: 1)
+            guard group.location != NSNotFound else { continue }
+            out += ns.substring(with: NSRange(location: cursor, length: group.location - cursor))
+            out += transform(ns.substring(with: group))
+            cursor = group.location + group.length
+        }
+        out += ns.substring(from: cursor)
+        return out
     }
 
     /// `prettyPrint(pretty: false)` so no whitespace is inserted.

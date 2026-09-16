@@ -28,6 +28,17 @@ final class QuoteExtractorTests: XCTestCase {
         XCTAssertFalse(quoted.contains("mm-"))
     }
 
+    func testUnscopesStyleBlocks() throws {
+        let sanitized = try Sanitizer.sanitize(
+            html: "<style>.a{color:red}body{margin:0}@media print{.b{x:y}}</style><p class=\"a\">x</p>",
+            messageId: "m1"
+        ).html
+        XCTAssertTrue(sanitized.contains(".mm-msg[data-id=\"m1\"]"), sanitized)
+        let quoted = QuoteExtractor.quotable(sanitized)
+        XCTAssertTrue(quoted.contains("<style>.a{color:red}body{margin:0}@media print{.b{x:y}}</style>"), quoted)
+        XCTAssertFalse(quoted.contains("mm-"))
+    }
+
     func testNeverThrows() {
         _ = QuoteExtractor.quotable("<<<>>>\u{0}")
     }

@@ -84,7 +84,42 @@ final class SanitizerTests: XCTestCase {
         XCTAssertFalse(html.contains("@import"))
         XCTAssertFalse(html.contains("@font-face"))
         XCTAssertFalse(html.contains("url(https://img.example/bg.png)"))
-        XCTAssertTrue(html.contains(".dark{background-color:#000}"), html)
+        XCTAssertTrue(html.contains(".mm-msg[data-id=\"m1\"] .mm-body .dark{background-color:#000}"), html)
+    }
+
+    func testStyleBlockScopedToMessage() throws {
+        let css = "body{color:red} html, .a > b{margin:0} @media (max-width:600px){.c{display:none}} "
+            + "@keyframes k{from{opacity:0}} @font-face{font-family:X} p{x:y}"
+        let body = try Sanitizer.sanitize(html: "<style>\(css)</style><p class=\"c\">x</p>", messageId: "m1")
+        let scope = ".mm-msg[data-id=\"m1\"] .mm-body"
+        XCTAssertTrue(body.html.contains("\(scope){color:red}"), body.html)
+        XCTAssertTrue(body.html.contains("\(scope),\(scope) .a > b{margin:0}"), body.html)
+        XCTAssertTrue(body.html.contains("@media (max-width:600px){\(scope) .c{display:none}}"), body.html)
+        XCTAssertTrue(body.html.contains("\(scope) p{x:y}"), body.html)
+        XCTAssertFalse(body.html.contains("@keyframes"))
+        XCTAssertFalse(body.html.contains("@font-face"))
+    }
+
+    func testRendererClassesStripped() throws {
+        let body = try Sanitizer.sanitize(
+            html: "<div class=\"mm-hdr keep MM-att\">x</div><span class=\"mm-skeleton\">y</span>", messageId: "m1")
+        XCTAssertTrue(body.html.contains("class=\"keep\""), body.html)
+        XCTAssertFalse(body.html.contains("mm-hdr"))
+        XCTAssertFalse(body.html.contains("mm-skeleton"))
+        XCTAssertFalse(body.html.lowercased().contains("mm-att"))
+    }
+
+    func testProseIsNotScrubbed() throws {
+        let body = try Sanitizer.sanitize(
+            html: "<p>his behavior: fine, see url(x) and expression (y)</p>", messageId: "m1")
+        XCTAssertTrue(body.html.contains("his behavior: fine, see url(x) and expression (y)"), body.html)
+    }
+
+    func testStyleAttributeScrubbed() throws {
+        let body = try Sanitizer.sanitize(
+            html: "<div style=\"color:red;background:url(https://x/y.png)\">x</div>", messageId: "m1")
+        XCTAssertTrue(body.html.contains("color:red"), body.html)
+        XCTAssertFalse(body.html.contains("https://x"), body.html)
     }
 
     func testNewsletterIsCard() throws {
