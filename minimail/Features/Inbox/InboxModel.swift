@@ -311,6 +311,16 @@ nonisolated private struct InboxAux: Equatable, Sendable {
         Task { await env.actions.archive(threadId: threadId) }
     }
 
+    /// Leading-swipe action: archive and, when still unread, mark read — the two modifies coalesce into one
+    /// outbox op for the thread (`OutboxCoalescer`).
+    func archiveAndMarkRead(threadId: String, isUnread: Bool) {
+        lastActionId += 1
+        Task {
+            await env.actions.archive(threadId: threadId)
+            if isUnread { await env.actions.markRead(threadId: threadId) }
+        }
+    }
+
     func toggleRead(threadId: String, isUnread: Bool) {
         lastActionId += 1
         Task {

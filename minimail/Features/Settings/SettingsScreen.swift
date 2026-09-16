@@ -146,6 +146,11 @@ private struct SettingsReadingSection: View {
                 .accessibilityIdentifier("settings.loadImages")
             Toggle("Mark as Read When Opened", isOn: settings.binding(\.markReadOnOpen))
                 .accessibilityIdentifier("settings.markRead")
+            Picker("Preview Lines", selection: settings.binding(\.previewLineCount)) {
+                ForEach(Settings.previewLineRange, id: \.self) { Text("\($0)").tag($0) }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("settings.previewLines")
         } header: {
             Text("Reading")
         } footer: {

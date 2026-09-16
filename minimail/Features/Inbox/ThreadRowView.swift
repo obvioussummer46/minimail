@@ -4,9 +4,13 @@ import SwiftUI
 /// One thread row (architecture §8.3). `body` maps precomputed strings to `Text`; no formatting, no `Task`.
 struct ThreadRowView: View {
     let row: ThreadRow
+    let previewLines: Int
     @ThemeTokensReader private var themeTokens
 
-    init(row: ThreadRow) { self.row = row }
+    init(row: ThreadRow, previewLines: Int = 2) {
+        self.row = row
+        self.previewLines = previewLines
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -31,7 +35,7 @@ struct ThreadRowView: View {
                 Text(row.subject.isEmpty ? "(No subject)" : row.subject)
                     .font(.subheadline).lineLimit(1).foregroundStyle(themeTokens.text)
                 HStack(alignment: .top, spacing: 8) {
-                    Text(row.snippet).font(.footnote).foregroundStyle(themeTokens.secondaryText).lineLimit(2)
+                    Text(row.snippet).font(.footnote).foregroundStyle(themeTokens.secondaryText).lineLimit(previewLines)
                     Spacer(minLength: 8)
                     if !row.chips.isEmpty {
                         HStack(spacing: 4) { ForEach(row.chips) { LabelChip(chip: $0) } }

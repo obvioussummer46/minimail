@@ -17,10 +17,13 @@ nonisolated struct Settings: Codable, Equatable, Sendable {
     /// Flipped to true only after badge authorization succeeds.
     var showBadge: Bool = false
     var inboxPageSize: Int = 100
+    /// Number of snippet lines shown per inbox row. Clamped to `previewLineRange`.
+    var previewLineCount: Int = 2
     /// Used as an OAuth `login_hint` only. The signed-in identity lives in the sync state table.
     var lastSignedInEmail: String?
 
     static let inboxPageSizeRange: ClosedRange<Int> = 50...200
+    static let previewLineRange: ClosedRange<Int> = 1...6
 
     init() {}
 
@@ -49,6 +52,7 @@ nonisolated struct Settings: Codable, Equatable, Sendable {
         if let value = try container.decodeIfPresent(Bool.self, forKey: .markReadOnOpen) { markReadOnOpen = value }
         if let value = try container.decodeIfPresent(Bool.self, forKey: .showBadge) { showBadge = value }
         if let value = try container.decodeIfPresent(Int.self, forKey: .inboxPageSize) { inboxPageSize = value }
+        if let value = try container.decodeIfPresent(Int.self, forKey: .previewLineCount) { previewLineCount = value }
         if let value = try container.decodeIfPresent(String.self, forKey: .lastSignedInEmail) {
             lastSignedInEmail = value
         }
@@ -62,6 +66,10 @@ nonisolated struct Settings: Codable, Equatable, Sendable {
         copy.inboxPageSize = min(
             max(copy.inboxPageSize, Self.inboxPageSizeRange.lowerBound),
             Self.inboxPageSizeRange.upperBound
+        )
+        copy.previewLineCount = min(
+            max(copy.previewLineCount, Self.previewLineRange.lowerBound),
+            Self.previewLineRange.upperBound
         )
         // Re-assigning runs ComposeStyle's property observers for values that arrived by memberwise mutation.
         copy.composeStyle.sizePx = copy.composeStyle.sizePx

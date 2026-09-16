@@ -104,6 +104,32 @@ private struct InboxListView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                // Always-visible mailbox switcher: the title menu's affordance only appears once the large title
+                // collapses on scroll, so an empty Today (nothing to scroll) would otherwise trap the user.
+                Menu {
+                    Button {
+                        model.setScope(.inbox)
+                    } label: {
+                        Label("Inbox", systemImage: "tray")
+                    }
+                    Button {
+                        model.setScope(.today)
+                    } label: {
+                        Label("Today", systemImage: "sun.max")
+                    }
+                    Divider()
+                    Button {
+                        model.activeSheet = .labels
+                    } label: {
+                        Label("Labels…", systemImage: "tag")
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                }
+                .accessibilityLabel("Mailboxes")
+                .accessibilityIdentifier("inbox.mailboxMenu")
+            }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
                     model.toggleUnreadOnly()
@@ -170,12 +196,12 @@ private struct InboxListView: View {
             NavigationLink(value: ThreadRoute(threadId: row.id)) { EmptyView() }
                 .opacity(0)
                 .accessibilityHidden(true)
-            ThreadRowView(row: row)
+            ThreadRowView(row: row, previewLines: env.settings.settings.previewLineCount)
         }
         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 16))
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                model.archive(threadId: row.id)
+                model.archiveAndMarkRead(threadId: row.id, isUnread: row.isUnread)
             } label: {
                 Label("Archive", systemImage: "archivebox")
             }

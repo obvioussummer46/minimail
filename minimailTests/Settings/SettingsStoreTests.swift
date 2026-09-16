@@ -38,8 +38,8 @@ nonisolated final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(
             String(decoding: data, as: UTF8.self),
             ##"{"composeStyle":{"colorHex":"#000000","family":"helvetica","sizePx":14},"inboxPageSize":100,"##
-                + ##""loadRemoteImages":false,"markReadOnOpen":true,"schemaVersion":1,"showBadge":false,"##
-                + ##""signatureEnabled":true,"signatureHTML":"","themeChoice":"dark"}"##
+                + ##""loadRemoteImages":false,"markReadOnOpen":true,"previewLineCount":2,"schemaVersion":1,"##
+                + ##""showBadge":false,"signatureEnabled":true,"signatureHTML":"","themeChoice":"dark"}"##
         )
         XCTAssertEqual(SettingsStore(defaults: defaults).settings.themeChoice, .dark)
     }
@@ -76,6 +76,16 @@ nonisolated final class SettingsStoreTests: XCTestCase {
         let store = SettingsStore(defaults: freshDefaults())
         store.update { $0.inboxPageSize = 0 }
         XCTAssertEqual(store.settings.inboxPageSize, 50)
+    }
+
+    @MainActor
+    func testClampPreviewLineCount() {
+        XCTAssertEqual(makeStore(seededWith: #"{"previewLineCount":99}"#).settings.previewLineCount, 6)
+        XCTAssertEqual(makeStore(seededWith: #"{"previewLineCount":0}"#, "low").settings.previewLineCount, 1)
+
+        let store = SettingsStore(defaults: freshDefaults())
+        store.update { $0.previewLineCount = 42 }
+        XCTAssertEqual(store.settings.previewLineCount, 6)
     }
 
     @MainActor

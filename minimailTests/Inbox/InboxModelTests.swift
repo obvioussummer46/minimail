@@ -188,6 +188,22 @@ nonisolated final class InboxModelTests: XCTestCase {
     }
 
     @MainActor
+    func testArchiveAndMarkReadCoalescesIntoOneOp() async throws {
+        try seed([
+            TestDatabase.parsed(id: "t1", internalDate: seedNow + 60_000, labels: ["INBOX", "UNREAD"]),
+            TestDatabase.parsed(id: "t2", internalDate: seedNow, labels: ["INBOX"]),
+        ])
+        model = InboxModel(env: env, scope: .inbox)
+        model.archiveAndMarkRead(threadId: "t1", isUnread: true)
+        await waitUntil { self.model.rows.map(\.id) == ["t2"] }
+        let ops = try await env.db.read { try OutboxRepository.activeModifies($0) }
+        XCTAssertEqual(ops.count, 1)
+        XCTAssertEqual(ops.first?.threadId, "t1")
+        XCTAssertEqual(Set(ops.first?.removeLabelIds ?? []), ["INBOX", "UNREAD"])
+        try InvariantChecks.assertAll(env.db)
+    }
+
+    @MainActor
     func testToggleReadFlipsAndCoalesces() async throws {
         try seed([TestDatabase.parsed(id: "t1", internalDate: seedNow, labels: ["INBOX", "UNREAD"])])
         model = InboxModel(env: env, scope: .inbox)
