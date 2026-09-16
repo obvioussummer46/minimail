@@ -1,12 +1,20 @@
 {
+  "pages": [
+    { "id": "page-1", "name": "Three dots" },
+    { "id": "page-2", "name": "Earlier directions" }
+  ],
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 600, "h": 780, "title": "A - The extra i" },
-    { "file": "DirectionB.dc.html", "x": 700, "y": 0, "w": 600, "h": 780, "title": "B - The m is the flap" },
-    { "file": "DirectionC.dc.html", "x": 0, "y": 940, "w": 600, "h": 780, "title": "C - Insertion mark" },
-    { "file": "DirectionD.dc.html", "x": 700, "y": 940, "w": 600, "h": 780, "title": "D - No envelope" }
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 600, "h": 780, "title": "Three dots", "page": "page-1" },
+    { "file": "DotsVariants.dc.html", "x": 700, "y": 0, "w": 700, "h": 780, "title": "Mark studies", "page": "page-1" },
+    { "file": "Navigation.dc.html", "x": 0, "y": 940, "w": 800, "h": 760, "title": "In the app", "page": "page-1" },
+    { "file": "DirectionA.dc.html", "x": 0, "y": 0, "w": 600, "h": 780, "title": "A - The extra i", "page": "page-2" },
+    { "file": "DirectionB.dc.html", "x": 700, "y": 0, "w": 600, "h": 780, "title": "B - The m is the flap", "page": "page-2" },
+    { "file": "DirectionC.dc.html", "x": 0, "y": 940, "w": 600, "h": 780, "title": "C - Insertion mark", "page": "page-2" },
+    { "file": "DirectionD.dc.html", "x": 700, "y": 940, "w": 600, "h": 780, "title": "D - No envelope", "page": "page-2" }
   ],
   "annotations": [
-    { "id": "brief", "x": -340, "y": 0, "w": 280, "text": "minimal -> minimail\n\nFour directions for the one-letter pun. Colours are the app's own AccentColor (#007AFF light, #0A84FF dark); type is the system face the app already uses.\n\nPick one and it gets built into Main as the real 1024 icon plus the lockup." }
+    { "id": "brief", "x": -360, "y": 0, "w": 300, "page": "page-1", "text": "minimal has two tittles. minimail has three.\n\nThe mark is the word reduced to its dots, with the accent on the one the name gained - the same dot the inbox draws against an unread thread.\n\nThe toolbar borrows it upright, where it replaces the hamburger and gains a state the menu already had." },
+    { "id": "superseded", "x": -360, "y": 0, "w": 300, "page": "page-2", "text": "The first four directions, kept for the record. A is the one this grew out of." }
   ],
-  "launch": { "view": "canvas" }
+  "launch": { "view": "canvas", "page": "page-1" }
 }

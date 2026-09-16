@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    a { color: #007AFF; } a:hover { color: #0060DF; }
+  </style>
+</helmet>
+<div style="width: 600px; height: 780px; box-sizing: border-box; background: #F2F2F7; padding: 40px; display: flex; flex-direction: column; gap: 24px;">
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #8A8A8E;">Direction A</div>
+    <div style="font-size: 27px; font-weight: 700; letter-spacing: -0.02em; color: #1C1C1E;">The extra i</div>
+    <div style="font-size: 14px; line-height: 1.5; color: #3C3C43; max-width: 470px; text-wrap: pretty;">minimal becomes minimail by one inserted letter. That letter is the logo: set in the accent, with its tittle enlarged into the unread dot the inbox already draws.</div>
+  </div>
+
+  <div style="display: flex; gap: 20px; align-items: flex-start;">
+    <div style="display: flex; flex-direction: column; gap: 9px; align-items: center;">
+      <svg width="158" height="158" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="240" height="240" rx="53.68" fill="{{accent}}"></rect>
+        <circle cx="120" cy="74" r="23" fill="#FFFFFF"></circle>
+        <rect x="105" y="112" width="30" height="74" rx="15" fill="#FFFFFF"></rect>
+      </svg>
+      <div style="font-size: 11px; color: #8A8A8E;">Light</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 9px; align-items: center;">
+      <svg width="158" height="158" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="240" height="240" rx="53.68" fill="{{accentDark}}"></rect>
+        <circle cx="120" cy="74" r="23" fill="#FFFFFF"></circle>
+        <rect x="105" y="112" width="30" height="74" rx="15" fill="#FFFFFF"></rect>
+      </svg>
+      <div style="font-size: 11px; color: #8A8A8E;">Dark</div>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 14px; justify-content: center; padding-top: 30px;">
+      <div style="display: flex; gap: 14px; align-items: flex-end;">
+        <svg width="60" height="60" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect width="240" height="240" rx="53.68" fill="{{accent}}"></rect>
+          <circle cx="120" cy="74" r="23" fill="#FFFFFF"></circle>
+          <rect x="105" y="112" width="30" height="74" rx="15" fill="#FFFFFF"></rect>
+        </svg>
+        <svg width="40" height="40" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect width="240" height="240" rx="53.68" fill="{{accent}}"></rect>
+          <circle cx="120" cy="74" r="23" fill="#FFFFFF"></circle>
+          <rect x="105" y="112" width="30" height="74" rx="15" fill="#FFFFFF"></rect>
+        </svg>
+        <svg width="29" height="29" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect width="240" height="240" rx="53.68" fill="{{accent}}"></rect>
+          <circle cx="120" cy="74" r="23" fill="#FFFFFF"></circle>
+          <rect x="105" y="112" width="30" height="74" rx="15" fill="#FFFFFF"></rect>
+        </svg>
+      </div>
+      <div style="font-size: 11px; line-height: 1.5; color: #8A8A8E;">60 · 40 · 29 px<br>Home screen, Settings, notification</div>
+    </div>
+  </div>
+
+  <div style="height: 1px; background: #D1D1D6;"></div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="font-size: 52px; font-weight: 600; letter-spacing: -0.035em; color: #1C1C1E; line-height: 1;">minima<span style="color: {{accent}};">i</span>l</div>
+    <div style="font-size: 13px; color: #8A8A8E; letter-spacing: 0.01em;">minimal &#43; <span style="color: {{accent}}; font-weight: 600;">i</span> &#8594; minimail</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 5px; margin-top: auto;">
+    <div style="font-size: 12px; font-weight: 600; color: #1C1C1E;">Tradeoff</div>
+    <div style="font-size: 13px; line-height: 1.5; color: #8A8A8E; max-width: 470px; text-wrap: pretty;">A bare i on blue sits close to a generic info glyph. The oversized tittle is what pulls it away &#8212; it reads as a dot on a bar, not as a letter.</div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#007AFF","section":"Color","options":["#007AFF","#5856D6","#1C1C1E","#FF3B30"]},"accentDark":{"editor":"color","default":"#0A84FF","section":"Color"},"$preview":{"width":600,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#007AFF',
+      accentDark: this.props.accentDark ?? '#0A84FF',
+    };
+  }
+}
+</script>
+</body>
+</html>
