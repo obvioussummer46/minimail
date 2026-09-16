@@ -441,3 +441,55 @@ the top of the render script.
 No Swift toolchain and no Mac in this container: the view, the isolation annotations and the two new tests
 are unbuilt and unrun. CI is the compiler, as everywhere else in this file.
 
+
+## Plain-text reading mode (no spec module)
+
+Out of stage 1's feature list, like the three-dot mark: a `Settings` toggle that renders message bodies as
+native text instead of handing the document to the pooled `WKWebView`. Off by default.
+
+It is mostly a rendering choice, because `bodyHtml` is `NOT NULL` and always stored: `ComposeModel` builds the
+reply quote from the stored HTML, so reply and forward are untouched by the mode and nothing has to be
+re-fetched or converted when the user hits reply. `message_body.bodyText` already existed and is preferred
+when Gmail delivered a `text/plain` alternative.
+
+### What it removes from the read path
+
+`ThreadModel.rebuild` returns early in text mode, so the document is never built; with no `MailWebView` in the
+tree there is no `WKWebView`, no `loadHTMLString`, no rule-list attach, no `cid:` scheme handler and no JS
+height round-trip. A thread open becomes a database read and a string walk. `documentLoad` does not fire at
+all, so the interval to compare on device is `threadOpen` alone.
+
+### PlainTextBody, and why it is not a tag strip
+
+`Quoting.textFromHTML` drops every `href`. For a quote that is fine; for a *reading view* it is a safety
+regression — "click here" with no visible destination is the shape of a phishing link. So
+`MailCore/Render/PlainTextBody.swift` walks the HTML into **runs** (`.text` / `.link(text:url:)`) and the app
+turns each link into a tappable `AttributedString` run whose URL a long-press reveals. Only `http`, `https`,
+`mailto` and `tel` become tap targets, matching `LinkPolicy.openableSchemes`, so a `javascript:` href cannot
+become one here either.
+
+The shared walker moved to `MailCore/Render/HTMLText.swift` and `Quoting.textFromHTML` now delegates to it —
+one implementation, so a quote can never say something the read view did not show. `ComposeTests`'
+`testTextFromHTML` and `testTextFromHTMLDecodesNumericEntities` are the guard on that refactor; all four of
+their cases were traced by hand against the new walker before it was written down.
+
+### Deviations and limits
+
+1. **"Show Original" is screen-scoped, not per-message.** The document is one web view for the whole thread,
+   so a per-message override would mean nesting a `WKWebView` inside a `ScrollView`. The button appears under
+   every expanded message but flips the whole screen, and a notice row offers the way back.
+2. **An anchor with no text leaves no run.** Image buttons are common in newsletters and there is nothing to
+   show for them in text mode; Show Original is the way to them. An `alt` fallback was not attempted.
+3. **Inline `cid:` images are listed as attachments**, unlike the document, which filters them out — in text
+   mode there is nowhere for them to render, and silently dropping them would lose content.
+4. **Bodies are walked lazily and memoised** on `MessageBodyRecord.fetchedAt` (`plainCache`), and only for
+   expanded messages, so scrolling a long thread does not re-walk every body on each redraw. The cache is
+   `@ObservationIgnored`, which is also what keeps a computed property mutating it out of SwiftUI's
+   state-during-update warning.
+
+### Not verified here
+
+No Swift toolchain and no Mac in this container: none of this is built or run. The MailCore half
+(`PlainTextBodyTests`, 13 tests) is the part that could be run on Linux by anyone with a toolchain, and is
+where the risk concentrates — the walker is hand-traced, not executed.
+

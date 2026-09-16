@@ -22,6 +22,7 @@ struct ThreadScreen: View {
             .task { await load() }
             .task { await observeContentSize() }
             .onDisappear { model?.detachWeb() }
+            .onChange(of: env.settings.settings.plainTextBodies) { _, _ in model?.readingModeChanged() }
             .onChange(of: colorScheme) { _, scheme in model?.systemSchemeChanged(scheme) }
             .onChange(of: env.theme.choice) { _, _ in model?.systemSchemeChanged(colorScheme) }
             .onChange(of: model?.shouldDismiss ?? false) { _, gone in if gone { dismiss() } }
@@ -162,19 +163,33 @@ private struct ThreadContentView: View {
     var body: some View {
         ZStack {
             tokens.background.ignoresSafeArea()
-            MailWebView(
-                host: env.webHost,
-                document: model.document,
-                revision: model.revision,
-                interfaceStyle: env.theme.interfaceStyle,
-                imagesAllowed: model.documentImagesAllowed,
-                backgroundColor: UIColor(tokens.background)
-            )
-            .accessibilityIdentifier("thread.web")
-            .ignoresSafeArea(edges: .bottom)
+            if model.rendersAsPlainText {
+                ThreadPlainView(model: model, tokens: tokens)
+            } else {
+                MailWebView(
+                    host: env.webHost,
+                    document: model.document,
+                    revision: model.revision,
+                    interfaceStyle: env.theme.interfaceStyle,
+                    imagesAllowed: model.documentImagesAllowed,
+                    backgroundColor: UIColor(tokens.background)
+                )
+                .accessibilityIdentifier("thread.web")
+                .ignoresSafeArea(edges: .bottom)
+            }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { backToTextRow }
         .safeAreaInset(edge: .top, spacing: 0) { noticeRow }
         .overlay(alignment: .center) { downloadingOverlay }
+    }
+
+    /// Only after a "Show Original": the way back, so the override is never a one-way door.
+    @ViewBuilder private var backToTextRow: some View {
+        if model.showsRenderedOverride && env.settings.settings.plainTextBodies {
+            ThreadNotice(
+                text: "Showing the original message.", actionTitle: "Show Text",
+                action: { model.showAsText() }, tokens: tokens, dismiss: nil)
+        }
     }
 
     /// A failed attachment is the more recent, more explicit action, so it wins over a thread-load error.
