@@ -19,22 +19,37 @@ Developer account; none of it runs in CI without the secrets below.
 - `CURRENT_PROJECT_VERSION` (build number) must strictly increase per upload. Bump it on every archive
   (`agvtool`/manual). App Store Connect rejects a duplicate build number.
 
-## Archive + upload (local)
+## Archive + upload (local, path 1)
 ```
-xcodegen generate
-xcodebuild -project minimail.xcodeproj -scheme minimail -configuration Release \
-  -destination 'generic/platform=iOS' -archivePath .build/minimail.xcarchive archive
-xcodebuild -exportArchive -archivePath .build/minimail.xcarchive \
-  -exportOptionsPlist ExportOptions.plist -exportPath .build/export
-xcrun altool --upload-app -f .build/export/minimail.ipa -t ios \
-  --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+export ASC_KEY_ID=<key id> ASC_ISSUER_ID=<issuer uuid>
+make upload-testflight
 ```
-(`--apiKey` finds the `.p8` in `~/.appstoreconnect/private_keys/AuthKey_<KeyID>.p8` or `./private_keys`.)
+`archive` fails fast when `ASC_KEY_ID` is unset or `Config/*.xcconfig` still holds `REPLACE` placeholders, so
+a misconfigured machine stops before a 10-minute build. `ASC_KEY_PATH` defaults to
+`~/.appstoreconnect/private_keys/AuthKey_$(ASC_KEY_ID).p8`; set it explicitly if the key lives elsewhere.
+`make bump-build` increments `CURRENT_PROJECT_VERSION` first — commit that when you want the number to be
+reproducible from the repository.
 
-## CI (deferred)
-A manual `workflow_dispatch` GitHub Action (`macos-26` runner) can run the same steps with the API key stored
-as repository secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (base64). Not wired up yet — add
-`.github/workflows/release.yml` when the account and secrets exist.
+## GitHub Actions (path 2)
+`.github/workflows/release.yml`, `workflow_dispatch` only, on a `macos-26` runner. It fills the two config
+files from secrets, writes the API key to `$RUNNER_TEMP/keys`, runs `fixtures-check` → `core-test` →
+`test-app`, then `make upload-testflight`, and deletes the key in an `always()` step. The `bump` input
+(default true) runs `make bump-build` on the runner; that change is never committed, so a dispatched build
+takes the next number only for that run.
+
+Six secrets, on the repository or on its `testflight` environment:
+
+| Secret | Value |
+|---|---|
+| `ASC_KEY_ID` | App Store Connect API key id |
+| `ASC_ISSUER_ID` | issuer UUID from the same page |
+| `ASC_KEY_P8` | the **whole `-----BEGIN PRIVATE KEY-----` text**, not base64 — the workflow writes it to a `.p8` verbatim |
+| `APPLE_TEAM_ID` | 10-character team id; also substituted into `ExportOptions.plist` |
+| `GOOGLE_CLIENT_ID` | iOS OAuth client id |
+| `GOOGLE_REVERSED_CLIENT_ID` | its reversed form, the URL scheme |
+
+None is ever echoed. Both paths produce the same artefact; the local one is the faster loop while signing is
+still being sorted out.
 
 ## After upload
 - The build appears in App Store Connect → TestFlight after processing (minutes to ~an hour).

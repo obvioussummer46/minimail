@@ -1,0 +1,62 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Bump CURRENT_PROJECT_VERSION before archiving
+        type: boolean
+        default: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-26
+    timeout-minutes: 60
+    environment: testflight          # holds the secrets below
+    env:
+      SIM_DEST: platform=iOS Simulator,name=iPhone 17
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.6'
+      - name: Install tools
+        run: brew install xcodegen
+      - name: Fill signing and OAuth configuration
+        run: |
+          printf '#include "Google.xcconfig"\nDEVELOPMENT_TEAM = %s\n' "${{ secrets.APPLE_TEAM_ID }}" > Config/Signing.xcconfig
+          printf 'GOOGLE_CLIENT_ID = %s\nGOOGLE_REVERSED_CLIENT_ID = %s\n' \
+            "${{ secrets.GOOGLE_CLIENT_ID }}" "${{ secrets.GOOGLE_REVERSED_CLIENT_ID }}" > Config/Google.xcconfig
+          sed -i '' "s/REPLACE_WITH_TEAM_ID/${{ secrets.APPLE_TEAM_ID }}/" ExportOptions.plist
+      - name: Write App Store Connect API key
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "${{ secrets.ASC_KEY_P8 }}" > "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+      - name: Bump build number
+        if: ${{ inputs.bump }}
+        run: make bump-build
+      - name: Fixture catalog
+        run: make fixtures-check
+      - name: Package tests
+        run: make core-test
+      - name: App tests
+        run: make test-app
+      - name: Archive and upload to TestFlight
+        env:
+          ASC_KEY_PATH: ${{ runner.temp }}/keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+        run: make upload-testflight
+      - name: Remove API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
+      - name: Upload results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-xcresult
+          path: .build/results

@@ -493,3 +493,52 @@ No Swift toolchain and no Mac in this container: none of this is built or run. T
 (`PlainTextBodyTests`, 13 tests) is the part that could be run on Linux by anyone with a toolchain, and is
 where the risk concentrates — the walker is hand-traced, not executed.
 
+
+## 14 QA and release: the catalog, `make qa`, and the release workflow
+
+The pieces of module 14 that do not need a Mac are now in place. What is left of it is owner work (T14.11)
+plus `FixtureLoader` / `FixtureCatalogTests` (T14.4), which have nothing to load: the app test target reads no
+fixture files, because the smoke tests build their data in code with `TestDatabase.seedSmoke`.
+
+### T14.1–T14.3 fixture catalog (deviation)
+
+Spec §5.1 lists a byte-exact 65-entry catalog. Two files exist under `MailCoreTests/Fixtures`, not 65 —
+modules 02/03/05 kept their Gmail and MIME payloads inline (their D1 deviations). Writing the spec's catalog
+would have described files that do not exist, so `CATALOG.txt` describes the 11 that do (2 `vectors`, 9
+`html`). `scripts/check-fixtures.py` keeps the spec's family lists and its four `EXPECTED_SIZES` entries, so
+back-filling those payloads later needs only new catalog lines — the checks switch themselves on.
+
+The script is written to §4.3's algorithm and exercised here on all four failure paths (a file on disk that is
+not catalogued, a catalogued file that is missing, malformed JSON, entries out of order), each exiting 1 with
+a named `FAIL`. `make fixtures-check` and the CI step run it; `make qa` is now
+`core-test fixtures-check lint test-app`, so the comment explaining why `fixtures-check` was omitted is gone.
+
+### T14.9 Makefile targets
+
+`ARCHIVE`/`EXPORT`/`ASC_*` variables and `fixtures-check`, `sims`, `bump-build`, `archive`,
+`upload-testflight`, verbatim from §5.4. `make bump-build` was run here: `CURRENT_PROJECT_VERSION` 1 → 2, one
+changed line in `project.yml`, no `.bak` left behind, then reverted. `archive`'s two guards could not be
+exercised — it depends on `gen`, and there is no XcodeGen in this container.
+
+### T14.10 release workflow
+
+`.github/workflows/release.yml` is §5.6 verbatim: `workflow_dispatch` only, `macos-26`, the `testflight`
+environment, key written to `$RUNNER_TEMP/keys` and deleted in an `always()` step. Both workflows parse.
+
+The runbook needed correcting rather than extending. It described the CI path as "deferred", listed three
+secrets where the workflow needs six, and called `ASC_KEY_P8` **base64** — but the workflow does
+`printf '%s' "$ASC_KEY_P8" > AuthKey.p8`, so a base64 secret would have produced an unusable key and a failure
+only at upload time. It now documents both upload paths and all six secrets.
+
+### Device checklist
+
+D27–D31 added across this session's work: the app icon, three dots as navigation, plain-text bodies, the
+plain-text round trip, and the quota figures. That last one closes a real gap — the checklist had no item
+collecting the per-method call counts that `docs/plan/fixtures.md` has been holding a placeholder for.
+
+### PLAN.md
+
+The twelve stage-1 feature boxes were still unticked although every one of them shipped; they are ticked now,
+with a line saying none has had a device pass. The three post-stage-1 additions are listed separately, and the
+notifications decision is recorded where the out-of-scope list already sat.
+
