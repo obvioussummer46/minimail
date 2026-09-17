@@ -1,6 +1,8 @@
-# minimail — implementation plan
+# minimail — implementation plan (ARCHIVED)
 
-Read this first. It is the index and the task order for stage 1.
+> **This plan is finished.** All 121 tasks shipped; see `PLAN.md` at the repo root for the current state and
+> `AGENTS.md` for how to work on the project now. Nothing below is pending. It is kept as the design record.
+> Agents: do not read further unless the user asks about a specific design decision.
 
 ## 1. How to use this plan
 

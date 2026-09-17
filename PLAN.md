@@ -1,71 +1,54 @@
 # minimail
 
-Minimal, native, fast Gmail client for iPhone. Work account: Google Workspace (example.com).
+Minimal, native, fast Gmail client for iPhone. Work account: Google Workspace.
 
-**The plan lives in [`docs/plan/README.md`](docs/plan/README.md).** Start there.
+**Status: stage 1 is complete. The app builds, is unit-tested and works.** Current work is small, gradual
+improvements driven by individual prompts. Agents: read [`AGENTS.md`](AGENTS.md) for how to work here.
 
-## Goals
-- Feels like a system app. SwiftUI, iOS 17+, no third-party UI.
-- Blazing speed: local-first, the UI never waits on the network.
-- No battery drain: no timers, no polling, no sockets, no prefetching.
-- Only stage-1 features. Nothing speculative.
+The original 121-task implementation plan (~28k lines) is archived under `docs/plan/` for reference only.
+Nothing in it is pending. Do not resume it.
 
-## Stage 1 features
-All built and unit-tested; none has had a device pass yet (`docs/plan/device-checklist.md`).
-
-- [x] Get mail (Inbox), pull to refresh
-- [x] Today view
-- [x] Unread-only view
+## What is built
+- [x] Inbox with pull to refresh, Today view, Unread-only view
 - [x] Gmail labels with counts
-- [x] Open thread, read HTML safely
-- [x] Mark read / unread, show read state
-- [x] Archive
-- [x] Reply all
-- [x] Forward (with attachments)
-- [x] HTML signature
-- [x] Default font and text colour for outgoing mail
-- [x] Dark mode, with a theme system open to more themes later
+- [x] Open thread, read HTML safely (sanitised, one pooled WKWebView, JS off, remote images off)
+- [x] Mark read / unread, archive, archive-and-read in one swipe
+- [x] Reply all, forward with attachments, through an optimistic outbox
+- [x] HTML signature (imported from Gmail, editable), default font and colour for outgoing mail
+- [x] Dark mode with a theme system
+- [x] Plain-text reading mode (Settings toggle, off by default)
+- [x] Three-dot mark: app icon and mailbox switcher
+- [x] `make qa` gate, CI on Linux + macOS, TestFlight release workflow
+
+None of it has had a full pass on a real device yet: `docs/plan/device-checklist.md` is the list to walk
+through once, on a phone with the work account.
+
+## Next session (the one remaining housekeeping job)
+- [ ] Merge branch `claude/xcode-plan-performance-k4746a` into `main` (it is `main` + the last unmerged
+      feature branch + these docs; it merges clean)
+- [ ] `make build && make test-app` on `main`
+- [ ] Delete the remote branches that are already in `main` (all `claude/*` branches except the one above
+      show 0 commits ahead of `main`)
+
+## Owner to-do (manual, cannot be scripted)
+- [ ] Google Cloud project, OAuth consent type **Internal**, Gmail API enabled
+- [ ] iOS OAuth client for bundle id `com.minimail` → `Config/Secrets.xcconfig`
+- [ ] Workspace admin: trust the client (else sign-in fails with `admin_policy_enforced`)
+- [ ] Apple Developer team, bundle id registered → `DEVELOPMENT_TEAM` in `Config/Secrets.xcconfig`
+- [ ] For TestFlight: App Store Connect API key, secrets per `docs/plan/testflight-runbook.md`
 
 ## Stack
 | Area | Choice |
 |---|---|
-| UI | SwiftUI, iOS 17 floor |
+| UI | SwiftUI, iOS 17 floor, Swift 6 strict concurrency |
 | Auth | AppAuth-iOS 3.0.0, PKCE, tokens in Keychain |
 | API | Gmail REST v1 over URLSession, scope `gmail.modify` only |
 | Sync | `history.list` delta sync, optimistic actions through an outbox |
 | Storage | GRDB 7.11.1 (SQLite, WAL) |
-| Email HTML | SwiftSoup sanitiser, one pooled WKWebView, JavaScript off, remote images off |
-| Core logic | `MailCore` local package, zero dependencies, tests run on Linux |
-| Build | XcodeGen + xcodebuild, `make qa` |
+| Email HTML | SwiftSoup sanitiser in `MailHTML`, one pooled WKWebView |
+| Core logic | `MailCore` local package, zero Apple-framework imports, tests run on Linux |
+| Build | XcodeGen + xcodebuild, `make build` / `make test-app` / `make qa` |
 
-Three dependencies total. Everything else is hand-written.
-
-## Milestones
-| | Scope | Modules |
-|---|---|---|
-| M1 | Project, MIME, Gmail model, auth, API client, database | 01–06 |
-| M2 | Sync, HTML rendering, inbox list, thread view, labels | 07–10, 12 |
-| M3 | Compose: reply-all and forward | 11 |
-| M4 | Settings, themes, signature, QA, TestFlight | 13, 14 |
-
-121 tasks. Each names its files, its definition of done and its verification command.
-
-## Owner to-do (manual, cannot be scripted)
-- [ ] Google Cloud project inside the example.com org, OAuth consent type **Internal**
-- [ ] Enable Gmail API
-- [ ] iOS OAuth client for bundle id `com.minimail`
-- [ ] Workspace admin: trust the client (else sign-in fails with `admin_policy_enforced`)
-- [ ] Apple Developer account, register the bundle id
-- [ ] A Mac or macOS runner with Xcode 26.x
-
-## Added after stage 1
-- [x] Archive and mark read in one swipe
-- [x] The three-dot mark: app icon and mailbox switcher
-- [x] Plain-text reading mode (Settings toggle, off by default)
-
-## Out of scope for stage 1
-New-message compose, search, multiple accounts, push notifications, snooze, drafts UI, calendar, contacts.
-
-Notifications were considered and deferred: real push needs Gmail `watch` → Cloud Pub/Sub → a hosted endpoint
-→ APNs, which is infrastructure this project deliberately avoids. Local notifications off the existing
-`BGAppRefreshTask` remain the cheap option if it is ever wanted.
+## Out of scope
+New-message compose, search, multiple accounts, push notifications (needs Gmail `watch` → Pub/Sub → a hosted
+endpoint → APNs; deliberately avoided), snooze, drafts UI, calendar, contacts.
