@@ -404,3 +404,141 @@ style, badge, Advanced, sign-out) on the placeholder screen.
 
 9. §4.9's `Result<String, any Error>` across a `Task.detached` boundary (deviation 1).
 10. §6.10's `Section(_:content:footer:)` (deviation 3) — the second occurrence of spec error 7.
+
+
+## Branding: the three-dot mark (no spec module)
+
+The plan never specified a logo — `AppIcon.png` shipped as a placeholder from module 01. The mark adopted
+here comes from the wordplay in the name: `minimal` carries two tittles, `minimail` three, so the mark is
+the wordmark reduced to those three dots with the accent on the one the name gained. That accent dot is the
+same colour `ThreadRowView` paints against an unread thread, so the icon and the list share one shape.
+
+The tittles sit over letters 2, 4 and 7, so the gaps run short-then-long. Both the icon and the toolbar
+control keep that 2:3 ratio; evenly spaced dots are an ellipsis, and `testMailboxDotsKeepsTheWordmarkRhythm`
+guards it.
+
+- `scripts/make-appicon.py` renders `AppIcon.png` (opaque 1024 square, no corner rounding — iOS masks it).
+  It is a dependency-free PNG writer because the build container has neither Pillow nor ImageMagick, and it
+  keeps the asset reproducible rather than committing an opaque binary nobody can regenerate. `make appicon`
+  runs it. The icon is a single universal image, matching the existing `Contents.json`; iOS 18 dark and
+  tinted variants were left out deliberately, since nothing here can verify an asset-catalogue change builds.
+- `minimail/Features/Inbox/MailboxDots.swift` is the mark at control size. It replaces `line.3.horizontal`
+  as the leading toolbar label in `InboxScreen`, and the filled dot shows the active scope — the switcher's
+  menu already had exactly three destinations (Inbox, Today, Labels), so the state cost nothing.
+  `MailboxDots.Slot` and `centers` are `nonisolated` so `InboxViewsTests` (a nonisolated class) can reach
+  them, following `ThreadRowView.accessibilityLabel(for:)`.
+
+### Open risk
+
+Three dots is iOS's *overflow* idiom, and this button is navigation rather than more-actions. Device
+checklist D28 is the test: if someone reaches for it expecting Delete and Move, the toolbar label reverts to
+`line.3.horizontal` and the mark stays in the app icon only. D27 covers the icon's white field against a
+light wallpaper; study 6 in `docs/logo` (blue field, white dots) is the fallback and is a colour change at
+the top of the render script.
+
+### Not verified here
+
+No Swift toolchain and no Mac in this container: the view, the isolation annotations and the two new tests
+are unbuilt and unrun. CI is the compiler, as everywhere else in this file.
+
+
+## Plain-text reading mode (no spec module)
+
+Out of stage 1's feature list, like the three-dot mark: a `Settings` toggle that renders message bodies as
+native text instead of handing the document to the pooled `WKWebView`. Off by default.
+
+It is mostly a rendering choice, because `bodyHtml` is `NOT NULL` and always stored: `ComposeModel` builds the
+reply quote from the stored HTML, so reply and forward are untouched by the mode and nothing has to be
+re-fetched or converted when the user hits reply. `message_body.bodyText` already existed and is preferred
+when Gmail delivered a `text/plain` alternative.
+
+### What it removes from the read path
+
+`ThreadModel.rebuild` returns early in text mode, so the document is never built; with no `MailWebView` in the
+tree there is no `WKWebView`, no `loadHTMLString`, no rule-list attach, no `cid:` scheme handler and no JS
+height round-trip. A thread open becomes a database read and a string walk. `documentLoad` does not fire at
+all, so the interval to compare on device is `threadOpen` alone.
+
+### PlainTextBody, and why it is not a tag strip
+
+`Quoting.textFromHTML` drops every `href`. For a quote that is fine; for a *reading view* it is a safety
+regression — "click here" with no visible destination is the shape of a phishing link. So
+`MailCore/Render/PlainTextBody.swift` walks the HTML into **runs** (`.text` / `.link(text:url:)`) and the app
+turns each link into a tappable `AttributedString` run whose URL a long-press reveals. Only `http`, `https`,
+`mailto` and `tel` become tap targets, matching `LinkPolicy.openableSchemes`, so a `javascript:` href cannot
+become one here either.
+
+The shared walker moved to `MailCore/Render/HTMLText.swift` and `Quoting.textFromHTML` now delegates to it —
+one implementation, so a quote can never say something the read view did not show. `ComposeTests`'
+`testTextFromHTML` and `testTextFromHTMLDecodesNumericEntities` are the guard on that refactor; all four of
+their cases were traced by hand against the new walker before it was written down.
+
+### Deviations and limits
+
+1. **"Show Original" is screen-scoped, not per-message.** The document is one web view for the whole thread,
+   so a per-message override would mean nesting a `WKWebView` inside a `ScrollView`. The button appears under
+   every expanded message but flips the whole screen, and a notice row offers the way back.
+2. **An anchor with no text leaves no run.** Image buttons are common in newsletters and there is nothing to
+   show for them in text mode; Show Original is the way to them. An `alt` fallback was not attempted.
+3. **Inline `cid:` images are listed as attachments**, unlike the document, which filters them out — in text
+   mode there is nowhere for them to render, and silently dropping them would lose content.
+4. **Bodies are walked lazily and memoised** on `MessageBodyRecord.fetchedAt` (`plainCache`), and only for
+   expanded messages, so scrolling a long thread does not re-walk every body on each redraw. The cache is
+   `@ObservationIgnored`, which is also what keeps a computed property mutating it out of SwiftUI's
+   state-during-update warning.
+
+### Not verified here
+
+No Swift toolchain and no Mac in this container: none of this is built or run. The MailCore half
+(`PlainTextBodyTests`, 13 tests) is the part that could be run on Linux by anyone with a toolchain, and is
+where the risk concentrates — the walker is hand-traced, not executed.
+
+
+## 14 QA and release: the catalog, `make qa`, and the release workflow
+
+The pieces of module 14 that do not need a Mac are now in place. What is left of it is owner work (T14.11)
+plus `FixtureLoader` / `FixtureCatalogTests` (T14.4), which have nothing to load: the app test target reads no
+fixture files, because the smoke tests build their data in code with `TestDatabase.seedSmoke`.
+
+### T14.1–T14.3 fixture catalog (deviation)
+
+Spec §5.1 lists a byte-exact 65-entry catalog. Two files exist under `MailCoreTests/Fixtures`, not 65 —
+modules 02/03/05 kept their Gmail and MIME payloads inline (their D1 deviations). Writing the spec's catalog
+would have described files that do not exist, so `CATALOG.txt` describes the 11 that do (2 `vectors`, 9
+`html`). `scripts/check-fixtures.py` keeps the spec's family lists and its four `EXPECTED_SIZES` entries, so
+back-filling those payloads later needs only new catalog lines — the checks switch themselves on.
+
+The script is written to §4.3's algorithm and exercised here on all four failure paths (a file on disk that is
+not catalogued, a catalogued file that is missing, malformed JSON, entries out of order), each exiting 1 with
+a named `FAIL`. `make fixtures-check` and the CI step run it; `make qa` is now
+`core-test fixtures-check lint test-app`, so the comment explaining why `fixtures-check` was omitted is gone.
+
+### T14.9 Makefile targets
+
+`ARCHIVE`/`EXPORT`/`ASC_*` variables and `fixtures-check`, `sims`, `bump-build`, `archive`,
+`upload-testflight`, verbatim from §5.4. `make bump-build` was run here: `CURRENT_PROJECT_VERSION` 1 → 2, one
+changed line in `project.yml`, no `.bak` left behind, then reverted. `archive`'s two guards could not be
+exercised — it depends on `gen`, and there is no XcodeGen in this container.
+
+### T14.10 release workflow
+
+`.github/workflows/release.yml` is §5.6 verbatim: `workflow_dispatch` only, `macos-26`, the `testflight`
+environment, key written to `$RUNNER_TEMP/keys` and deleted in an `always()` step. Both workflows parse.
+
+The runbook needed correcting rather than extending. It described the CI path as "deferred", listed three
+secrets where the workflow needs six, and called `ASC_KEY_P8` **base64** — but the workflow does
+`printf '%s' "$ASC_KEY_P8" > AuthKey.p8`, so a base64 secret would have produced an unusable key and a failure
+only at upload time. It now documents both upload paths and all six secrets.
+
+### Device checklist
+
+D27–D31 added across this session's work: the app icon, three dots as navigation, plain-text bodies, the
+plain-text round trip, and the quota figures. That last one closes a real gap — the checklist had no item
+collecting the per-method call counts that `docs/plan/fixtures.md` has been holding a placeholder for.
+
+### PLAN.md
+
+The twelve stage-1 feature boxes were still unticked although every one of them shipped; they are ticked now,
+with a line saying none has had a device pass. The three post-stage-1 additions are listed separately, and the
+notifications decision is recorded where the out-of-scope list already sat.
+

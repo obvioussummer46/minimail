@@ -1,0 +1,14 @@
+# MailHTML test fixtures. One entry per file, sorted. Checked by scripts/check-fixtures.py.
+#
+# Not copied into the app test bundle (project.yml copies only the MailCoreTests folder), so this
+# catalog is verified on disk by the script and in `swift test` by module 08's HTMLFixtures.
+
+html/dark-native.html
+html/inline-cid.html
+html/malformed.html
+html/newsletter.html
+html/plain-mail.html
+html/signature.html
+html/smoke.html
+html/tracking-pixels.html
+html/xss-samples.html

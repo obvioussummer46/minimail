@@ -655,6 +655,114 @@ nonisolated final class ThreadModelTests: XCTestCase {
         let result = try? await env.webHost.webView.evaluateJavaScript("document.body.innerHTML")
         return result as? String ?? ""
     }
+    // MARK: - Plain-text reading mode
+
+    @MainActor
+    func testPlainTextModeSkipsBuildingTheDocument() throws {
+        env.settings.update { $0.plainTextBodies = true }
+        try seed([message("m1", offset: 1_000)])
+        try storeBody("m1", html: "<p>One</p>")
+
+        model = ThreadModel(env: env, threadId: "t1")
+
+        XCTAssertTrue(model.rendersAsPlainText)
+        // The web document is the expensive half; nothing consumes it here, so it is never built.
+        XCTAssertTrue(model.document.isEmpty)
+        XCTAssertEqual(model.plainMessages.map(\.id), ["m1"])
+    }
+
+    @MainActor
+    func testPlainMessagesCarryBodyTextOnlyWhenExpanded() throws {
+        env.settings.update { $0.plainTextBodies = true }
+        try seed([message("m1", offset: 1_000), message("m2", offset: 2_000)])
+        try storeBody("m1", html: "<p>One</p>")
+        try storeBody("m2", html: "<p>Two</p>")
+
+        model = ThreadModel(env: env, threadId: "t1")
+
+        // Only the newest is expanded, so only its body is walked.
+        let byId = Dictionary(uniqueKeysWithValues: model.plainMessages.map { ($0.id, $0) })
+        XCTAssertNil(byId["m1"]?.body)
+        XCTAssertEqual(byId["m2"]?.body?.plain, "Two")
+
+        model.toggle(messageId: "m1")
+        XCTAssertEqual(model.plainMessages.first(where: { $0.id == "m1" })?.body?.plain, "One")
+    }
+
+    @MainActor
+    func testShowOriginalBuildsTheDocumentAndShowTextGoesBack() throws {
+        env.settings.update { $0.plainTextBodies = true }
+        try seed([message("m1", offset: 1_000)])
+        try storeBody("m1", html: "<p>One</p>")
+        model = ThreadModel(env: env, threadId: "t1")
+        XCTAssertTrue(model.document.isEmpty)
+
+        model.showOriginal()
+        XCTAssertFalse(model.rendersAsPlainText)
+        XCTAssertTrue(model.document.contains("data-id=\"m1\""))
+
+        model.showAsText()
+        XCTAssertTrue(model.rendersAsPlainText)
+    }
+
+    @MainActor
+    func testTurningTheSettingOffBuildsTheDocument() throws {
+        env.settings.update { $0.plainTextBodies = true }
+        try seed([message("m1", offset: 1_000)])
+        try storeBody("m1", html: "<p>One</p>")
+        model = ThreadModel(env: env, threadId: "t1")
+        XCTAssertTrue(model.document.isEmpty)
+
+        env.settings.update { $0.plainTextBodies = false }
+        model.readingModeChanged()
+
+        XCTAssertFalse(model.rendersAsPlainText)
+        XCTAssertTrue(model.document.contains("data-id=\"m1\""))
+    }
+
+    /// Inline images cannot render in text mode, so they are listed rather than silently dropped.
+    @MainActor
+    func testPlainMessagesListInlineAttachmentsToo() throws {
+        env.settings.update { $0.plainTextBodies = true }
+        try seed([message("m1", offset: 1_000)])
+        try env.db.write { db in
+            try BodyRepository.storeBody(
+                db, messageId: "m1",
+                body: SanitizedBody(
+                    html: "<p>One</p>", hasRemoteImages: false, darkStrategy: .plain,
+                    referencedContentIDs: ["cid1"]),
+                text: nil,
+                attachments: [
+                    ParsedAttachment(
+                        partId: "1", filename: "logo.png", mimeType: "image/png", size: 10, contentId: "cid1",
+                        attachmentId: "a1", inlineData: nil),
+                    ParsedAttachment(
+                        partId: "2", filename: "report.pdf", mimeType: "application/pdf", size: 20,
+                        contentId: nil, attachmentId: "a2", inlineData: nil),
+                ],
+                referenced: ["cid1"], sanitizerVersion: 1, now: 0)
+        }
+
+        model = ThreadModel(env: env, threadId: "t1")
+
+        XCTAssertEqual(
+            model.plainMessages.first?.attachments.map(\.filename).sorted(), ["logo.png", "report.pdf"])
+    }
+
+    /// Only the schemes `LinkPolicy` would open become tap targets.
+    @MainActor
+    func testAttributedBodyLinksOnlyOpenableSchemes() {
+        let body = PlainTextBody(runs: [
+            .link(text: "safe", url: "https://example.com"),
+            .text(" "),
+            .link(text: "nope", url: "javascript:alert(1)"),
+        ])
+        let attributed = ThreadPlainView.attributed(body)
+        let links = attributed.runs.compactMap(\.link)
+        XCTAssertEqual(links.map(\.absoluteString), ["https://example.com"])
+        XCTAssertEqual(String(attributed.characters), "safe nope")
+    }
+
 }
 
 /// Captures the URL handed to `openURL` from a closure the model owns.

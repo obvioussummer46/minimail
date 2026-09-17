@@ -11,18 +11,20 @@ Minimal, native, fast Gmail client for iPhone. Work account: Google Workspace (e
 - Only stage-1 features. Nothing speculative.
 
 ## Stage 1 features
-- [ ] Get mail (Inbox), pull to refresh
-- [ ] Today view
-- [ ] Unread-only view
-- [ ] Gmail labels with counts
-- [ ] Open thread, read HTML safely
-- [ ] Mark read / unread, show read state
-- [ ] Archive
-- [ ] Reply all
-- [ ] Forward (with attachments)
-- [ ] HTML signature
-- [ ] Default font and text colour for outgoing mail
-- [ ] Dark mode, with a theme system open to more themes later
+All built and unit-tested; none has had a device pass yet (`docs/plan/device-checklist.md`).
+
+- [x] Get mail (Inbox), pull to refresh
+- [x] Today view
+- [x] Unread-only view
+- [x] Gmail labels with counts
+- [x] Open thread, read HTML safely
+- [x] Mark read / unread, show read state
+- [x] Archive
+- [x] Reply all
+- [x] Forward (with attachments)
+- [x] HTML signature
+- [x] Default font and text colour for outgoing mail
+- [x] Dark mode, with a theme system open to more themes later
 
 ## Stack
 | Area | Choice |
@@ -56,5 +58,14 @@ Three dependencies total. Everything else is hand-written.
 - [ ] Apple Developer account, register the bundle id
 - [ ] A Mac or macOS runner with Xcode 26.x
 
+## Added after stage 1
+- [x] Archive and mark read in one swipe
+- [x] The three-dot mark: app icon and mailbox switcher
+- [x] Plain-text reading mode (Settings toggle, off by default)
+
 ## Out of scope for stage 1
 New-message compose, search, multiple accounts, push notifications, snooze, drafts UI, calendar, contacts.
+
+Notifications were considered and deferred: real push needs Gmail `watch` → Cloud Pub/Sub → a hosted endpoint
+→ APNs, which is infrastructure this project deliberately avoids. Local notifications off the existing
+`BGAppRefreshTask` remain the cheap option if it is ever wanted.

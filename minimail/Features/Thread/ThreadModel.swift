@@ -72,6 +72,10 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     private(set) var didMarkRead = false
     /// Bound by the screen with `.sheet(item:)`; 11's `ComposeScreen(input:)` consumes it.
     var composeInput: ComposeInput?
+    /// Set by "Show Original" — this screen renders the HTML document even though the setting asks for text.
+    /// Screen-scoped on purpose: the document is one web view for the whole thread, so mixing the two in one
+    /// scroll view would mean nesting a `WKWebView` inside a `ScrollView`.
+    private(set) var showsRenderedOverride = false
 
     // MARK: derived
 
@@ -87,6 +91,37 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     var newestMessageId: String? { detail?.messages.last?.id }
 
     var canCompose: Bool { newestMessageId != nil }
+
+    /// True when this screen paints native text instead of handing the document to `MailWebView`.
+    var rendersAsPlainText: Bool { env.settings.settings.plainTextBodies && !showsRenderedOverride }
+
+    /// The text projection, built only when it is what the screen shows.
+    var plainMessages: [ThreadPlainMessage] {
+        guard let detail else { return [] }
+        return detail.messages.map { message in
+            let body = detail.bodies[message.id]
+            return ThreadPlainMessage(
+                id: message.id,
+                fromName: message.fromName ?? "",
+                fromAddr: message.fromAddr,
+                toLine: message.toList.map(\.displayName).joined(separator: ", "),
+                ccLine: message.ccList.isEmpty
+                    ? nil : message.ccList.map(\.displayName).joined(separator: ", "),
+                dateLabel: labeler.label(epochMs: message.internalDate),
+                snippet: message.snippet,
+                isUnread: message.isUnread,
+                expanded: expanded.contains(message.id),
+                bodyState: message.bodyState,
+                body: expanded.contains(message.id) ? plainBody(for: message.id, record: body) : nil,
+                // Unlike the document, inline images are listed: in text mode there is nowhere for them to render.
+                attachments: detail.attachments
+                    .filter { $0.messageId == message.id }
+                    .map {
+                        ThreadDocumentAttachment(
+                            partId: $0.partId, filename: $0.filename, sizeLabel: Formatters.bytes($0.size))
+                    })
+        }
+    }
 
     /// Document-level image policy; drives both the CSP and the rule-list swap.
     var documentImagesAllowed: Bool {
@@ -115,6 +150,7 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     /// next render to find the sections worth patching.
     @ObservationIgnored private var sections: [String: String] = [:]
     @ObservationIgnored private var knownMessageIds: Set<String> = []
+    @ObservationIgnored private var plainCache: [String: (fetchedAt: Int64, body: PlainTextBody)] = [:]
     @ObservationIgnored private var didAppear = false
     @ObservationIgnored private var openURLAction: ((URL) -> Void)?
     @ObservationIgnored private let clock: () -> Date
@@ -225,6 +261,9 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     /// time — the loaded document is patched in place and `revision` does not move, so `MailWebView` does not
     /// reload and the scroll position survives. Everything else still goes through a real reload.
     private func rebuild(force: Bool, bumpsRevision: Bool = true) {
+        // In text mode nothing consumes the document, and building it walks every body through the renderer.
+        // `showOriginal()` clears the override before it calls this, so the first render there still happens.
+        guard !rendersAsPlainText else { return }
         let key = makeRenderKey()
         guard force || key != renderKey else { return }
         let previousKey = renderKey
@@ -364,6 +403,40 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     // MARK: in-document effects
 
     /// Expand/collapse through `evaluateJavaScript` when the loaded document is current; otherwise a rebuild.
+    /// Converts one body to text, memoised on `fetchedAt` so scrolling a long thread does not re-walk the
+    /// HTML of every expanded message on each redraw.
+    private func plainBody(for messageId: String, record: MessageBodyRecord?) -> PlainTextBody? {
+        guard let record else { return nil }
+        if let cached = plainCache[messageId], cached.fetchedAt == record.fetchedAt { return cached.body }
+        let body: PlainTextBody
+        if let text = record.bodyText, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body = PlainTextBody.make(text: text)
+        } else {
+            body = PlainTextBody.make(html: record.bodyHtml)
+        }
+        plainCache[messageId] = (record.fetchedAt, body)
+        return body
+    }
+
+    /// "Show Original": paint the rendered document for the rest of this screen.
+    func showOriginal() {
+        guard !showsRenderedOverride else { return }
+        showsRenderedOverride = true
+        rebuild(force: true)
+    }
+
+    /// Back to text after a "Show Original".
+    func showAsText() {
+        showsRenderedOverride = false
+    }
+
+    /// The setting changed while this screen was open. Leaving text mode needs the document built, which
+    /// `rebuild` has been skipping.
+    func readingModeChanged() {
+        showsRenderedOverride = false
+        if !rendersAsPlainText { rebuild(force: true) }
+    }
+
     func toggle(messageId: String) {
         guard var key = renderKey, let index = key.messages.firstIndex(where: { $0.id == messageId }) else {
             return

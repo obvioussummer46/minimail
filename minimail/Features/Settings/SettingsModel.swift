@@ -248,6 +248,10 @@ extension SettingsStrings {
     static let composeFooter =
         "Your default font, size and color are applied to the text you type. The quoted original keeps its own styling."
     static let readingFooter = "Remote images can tell the sender that you opened the message."
+    static let plainTextTitle = "Plain Text Bodies"
+    static let plainTextFooter =
+        "Messages open as text instead of a web page, so they appear immediately and remote content can never "
+        + "load. Tap Show Original on any message to see it rendered. Replies and forwards are unaffected."
     static let badgeDeniedFooter =
         "Badges are turned off for minimail. Allow them in iOS Settings → Notifications → minimail."
     static let badgeOpenSettings = "Open Settings"

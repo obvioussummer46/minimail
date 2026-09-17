@@ -23,6 +23,7 @@ struct SettingsScreen: View {
                     SettingsAppearanceSection()
                     SettingsComposeSection()
                     SettingsReadingSection()
+                    SettingsPlainTextSection()
                     SettingsNotificationsSection(model: model)
                     SettingsAdvancedSection(model: model)
                 }
@@ -155,6 +156,19 @@ private struct SettingsReadingSection: View {
             Text("Reading")
         } footer: {
             Text(SettingsStrings.readingFooter)
+        }
+    }
+}
+
+private struct SettingsPlainTextSection: View {
+    @Environment(SettingsStore.self) private var settings
+
+    var body: some View {
+        Section {
+            Toggle(SettingsStrings.plainTextTitle, isOn: settings.binding(\.plainTextBodies))
+                .accessibilityIdentifier("settings.plainTextBodies")
+        } footer: {
+            Text(SettingsStrings.plainTextFooter)
         }
     }
 }

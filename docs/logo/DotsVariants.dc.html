@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    a { color: #007AFF; } a:hover { color: #0060DF; }
+  </style>
+</helmet>
+<div style="width: 700px; height: 780px; box-sizing: border-box; background: #F2F2F7; padding: 40px; display: flex; flex-direction: column; gap: 26px;">
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #8A8A8E;">Mark studies</div>
+    <div style="font-size: 27px; font-weight: 700; letter-spacing: -0.02em; color: #1C1C1E;">Six ways to set three dots</div>
+    <div style="font-size: 14px; line-height: 1.5; color: #3C3C43; max-width: 560px; text-wrap: pretty;">Same three tittles, six arrangements. The accent always falls on the third &#8212; the one the name gained.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px;">
+
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+      <svg width="140" height="140" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+        <circle cx="55" cy="120" r="21" fill="#C7C7CC"></circle>
+        <circle cx="107" cy="120" r="21" fill="#C7C7CC"></circle>
+        <circle cx="185" cy="120" r="21" fill="{{accent}}"></circle>
+      </svg>
+      <div style="font-size: 13px; font-weight: 600; color: #1C1C1E;">1 &#183; True rhythm</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">Gaps in the 2:3 ratio the tittles actually sit at. Off-balance on purpose.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+      <svg width="140" height="140" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+        <circle cx="58" cy="120" r="21" fill="#C7C7CC"></circle>
+        <circle cx="120" cy="120" r="21" fill="#C7C7CC"></circle>
+        <circle cx="182" cy="120" r="21" fill="{{accent}}"></circle>
+      </svg>
+      <div style="font-size: 13px; font-weight: 600; color: #1C1C1E;">2 &#183; Even</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">Calmer, and one step from every overflow menu ever drawn.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+      <svg width="140" height="140" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+        <circle cx="55" cy="95" r="19" fill="#C7C7CC"></circle>
+        <circle cx="107" cy="95" r="19" fill="#C7C7CC"></circle>
+        <circle cx="185" cy="95" r="19" fill="{{accent}}"></circle>
+        <rect x="34" y="148" width="172" height="14" rx="7" fill="#1C1C1E"></rect>
+      </svg>
+      <div style="font-size: 13px; font-weight: 600; color: #1C1C1E;">3 &#183; Baseline</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">The whole wordmark abbreviated: its tittles, and the line they sit over.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+      <svg width="140" height="140" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+        <circle cx="62" cy="78" r="21" fill="#C7C7CC"></circle>
+        <circle cx="120" cy="120" r="21" fill="#C7C7CC"></circle>
+        <circle cx="178" cy="162" r="21" fill="{{accent}}"></circle>
+      </svg>
+      <div style="font-size: 13px; font-weight: 600; color: #1C1C1E;">4 &#183; Stair</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">Reads as arrival &#8212; mail landing down a list. Loses the wordmark link.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+      <svg width="140" height="140" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="238" height="238" rx="53.2" fill="#FFFFFF" stroke="#D1D1D6" stroke-width="2"></rect>
+        <circle cx="120" cy="55" r="21" fill="#C7C7CC"></circle>
+        <circle cx="120" cy="107" r="21" fill="#C7C7CC"></circle>
+        <circle cx="120" cy="185" r="21" fill="{{accent}}"></circle>
+      </svg>
+      <div style="font-size: 13px; font-weight: 600; color: #1C1C1E;">5 &#183; Stacked</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">Same rhythm turned upright. This is the one the navigation borrows.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start;">
+      <svg width="140" height="140" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="240" height="240" rx="53.68" fill="{{accent}}"></rect>
+        <circle cx="55" cy="120" r="21" fill="#FFFFFF" opacity="0.45"></circle>
+        <circle cx="107" cy="120" r="21" fill="#FFFFFF" opacity="0.45"></circle>
+        <circle cx="185" cy="120" r="21" fill="#FFFFFF"></circle>
+      </svg>
+      <div style="font-size: 13px; font-weight: 600; color: #1C1C1E;">6 &#183; Inverted</div>
+      <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">Solves the white-tile edge problem, but spends the accent on the field.</div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 5px; margin-top: auto;">
+    <div style="font-size: 12px; font-weight: 600; color: #1C1C1E;">Where this lands</div>
+    <div style="font-size: 13px; line-height: 1.5; color: #8A8A8E; max-width: 560px; text-wrap: pretty;">1 for the icon and 5 for the toolbar: the same three dots, rotated, so the button in the corner is visibly the app&#39;s own mark rather than a borrowed ellipsis. 3 is the one worth a second look if the icon needs more weight.</div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#007AFF","section":"Color","options":["#007AFF","#5856D6","#1C1C1E","#FF3B30"]},"$preview":{"width":700,"height":780}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#007AFF' };
+  }
+}
+</script>
+</body>
+</html>

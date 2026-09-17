@@ -1,0 +1,8 @@
+# MailCore test fixtures. One entry per file, sorted inside a family, families in the order
+# gmail, mime, vectors. Checked by scripts/check-fixtures.py (make fixtures-check).
+#
+# Modules 02 and 03 inlined their Gmail and MIME fixtures in the test sources rather than writing
+# them to disk, so those two families are empty here; see docs/plan/fixtures.md.
+
+vectors/smoke.json
+vectors/today.json

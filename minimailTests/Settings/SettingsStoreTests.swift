@@ -38,10 +38,19 @@ nonisolated final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(
             String(decoding: data, as: UTF8.self),
             ##"{"composeStyle":{"colorHex":"#000000","family":"helvetica","sizePx":14},"inboxPageSize":100,"##
-                + ##""loadRemoteImages":false,"markReadOnOpen":true,"previewLineCount":2,"schemaVersion":1,"##
+                + ##""loadRemoteImages":false,"markReadOnOpen":true,"plainTextBodies":false,"##
+                + ##""previewLineCount":2,"schemaVersion":1,"##
                 + ##""showBadge":false,"signatureEnabled":true,"signatureHTML":"","themeChoice":"dark"}"##
         )
         XCTAssertEqual(SettingsStore(defaults: defaults).settings.themeChoice, .dark)
+    }
+
+    @MainActor
+    func testPlainTextBodiesDefaultsOffAndDecodes() {
+        XCTAssertFalse(Settings().plainTextBodies)
+        XCTAssertTrue(makeStore(seededWith: #"{"plainTextBodies":true}"#).settings.plainTextBodies)
+        // Absent from an older install's payload: the default stands rather than throwing the decode.
+        XCTAssertFalse(makeStore(seededWith: #"{"markReadOnOpen":false}"#).settings.plainTextBodies)
     }
 
     @MainActor

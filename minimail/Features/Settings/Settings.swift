@@ -14,6 +14,9 @@ nonisolated struct Settings: Codable, Equatable, Sendable {
     /// Remote images stay off until the reader asks for them, per message.
     var loadRemoteImages: Bool = false
     var markReadOnOpen: Bool = true
+    /// Render message bodies as text instead of handing HTML to a `WKWebView`. Per-message "Show Original"
+    /// still opens the rendered document; reply and forward are unaffected, since they quote the stored HTML.
+    var plainTextBodies: Bool = false
     /// Flipped to true only after badge authorization succeeds.
     var showBadge: Bool = false
     var inboxPageSize: Int = 100
@@ -50,6 +53,9 @@ nonisolated struct Settings: Codable, Equatable, Sendable {
             loadRemoteImages = value
         }
         if let value = try container.decodeIfPresent(Bool.self, forKey: .markReadOnOpen) { markReadOnOpen = value }
+        if let value = try container.decodeIfPresent(Bool.self, forKey: .plainTextBodies) {
+            plainTextBodies = value
+        }
         if let value = try container.decodeIfPresent(Bool.self, forKey: .showBadge) { showBadge = value }
         if let value = try container.decodeIfPresent(Int.self, forKey: .inboxPageSize) { inboxPageSize = value }
         if let value = try container.decodeIfPresent(Int.self, forKey: .previewLineCount) { previewLineCount = value }

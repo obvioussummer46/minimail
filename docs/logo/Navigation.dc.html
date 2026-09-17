@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    a { color: #007AFF; } a:hover { color: #0060DF; }
+  </style>
+</helmet>
+<div style="width: 800px; height: 760px; box-sizing: border-box; background: #F2F2F7; padding: 40px; display: flex; flex-direction: column; gap: 24px;">
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #8A8A8E;">The mark in use</div>
+    <div style="font-size: 27px; font-weight: 700; letter-spacing: -0.02em; color: #1C1C1E;">Three dots as the mailbox switcher</div>
+    <div style="font-size: 14px; line-height: 1.5; color: #3C3C43; max-width: 660px; text-wrap: pretty;">The leading toolbar button is a hamburger today, and its menu has exactly three destinations. Three lines become three dots, and the filled one says which mailbox you are in.</div>
+  </div>
+
+  <div style="display: flex; gap: 30px; align-items: flex-start;">
+
+    <div style="width: 390px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #D1D1D6; border-radius: 14px; overflow: hidden;">
+      <div style="height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="4" r="2.5" fill="{{accent}}"></circle>
+          <circle cx="12" cy="10" r="2.5" fill="#C7C7CC"></circle>
+          <circle cx="12" cy="19" r="2.5" fill="#C7C7CC"></circle>
+        </svg>
+        <div style="display: flex; gap: 18px; align-items: center;">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.7" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9.2"></circle><path d="M 7.4 9.2 h 9.2"></path><path d="M 8.9 12 h 6.2"></path><path d="M 10.4 14.8 h 3.2"></path>
+          </svg>
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="3.1"></circle>
+            <path d="M 12 2.4 v 2.6 M 12 19 v 2.6 M 2.4 12 h 2.6 M 19 12 h 2.6 M 5.2 5.2 l 1.9 1.9 M 16.9 16.9 l 1.9 1.9 M 18.8 5.2 l -1.9 1.9 M 7.1 16.9 l -1.9 1.9"></path>
+          </svg>
+        </div>
+      </div>
+      <div style="padding: 2px 16px 10px 16px; font-size: 34px; font-weight: 700; letter-spacing: -0.028em; color: #1C1C1E;">Inbox</div>
+
+      <div style="display: flex; gap: 10px; padding: 11px 16px 12px 16px; border-top: 1px solid #E5E5EA;">
+        <div style="width: 10px; height: 10px; border-radius: 5px; background: {{accent}}; margin-top: 5px; flex-shrink: 0;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 6px;">
+            <div style="font-size: 17px; font-weight: 600; color: #1C1C1E;">Rita Okonjo</div>
+            <div style="flex-grow: 1;"></div>
+            <div style="font-size: 15px; color: #8A8A8E;">09:12</div>
+          </div>
+          <div style="font-size: 15px; color: #1C1C1E;">Re: staging deploy window</div>
+          <div style="font-size: 13px; line-height: 1.35; color: #8A8A8E;">Thursday works on our side. I will hold the release branch until you confirm the migration has run.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; padding: 11px 16px 12px 16px; border-top: 1px solid #E5E5EA;">
+        <div style="width: 10px; height: 10px; border-radius: 5px; background: {{accent}}; margin-top: 5px; flex-shrink: 0;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 6px;">
+            <div style="font-size: 17px; font-weight: 600; color: #1C1C1E;">Dan Whyte</div>
+            <div style="font-size: 13px; color: #8A8A8E;">3</div>
+            <div style="flex-grow: 1;"></div>
+            <div style="font-size: 15px; color: #8A8A8E;">08:40</div>
+          </div>
+          <div style="font-size: 15px; color: #1C1C1E;">Q3 headcount, final</div>
+          <div style="font-size: 13px; line-height: 1.35; color: #8A8A8E;">Attaching the signed version. The only change from Tuesday is the contractor line on page two.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; padding: 11px 16px 14px 16px; border-top: 1px solid #E5E5EA;">
+        <div style="width: 10px; height: 10px; border-radius: 5px; margin-top: 5px; flex-shrink: 0;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 6px;">
+            <div style="font-size: 17px; font-weight: 400; color: #1C1C1E;">Companies House</div>
+            <div style="flex-grow: 1;"></div>
+            <div style="font-size: 15px; color: #8A8A8E;">Yesterday</div>
+          </div>
+          <div style="font-size: 15px; color: #1C1C1E;">Confirmation statement filed</div>
+          <div style="font-size: 13px; line-height: 1.35; color: #8A8A8E;">Your confirmation statement was accepted. No further action is needed.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 24px; flex-grow: 1;">
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 12px; font-weight: 600; color: #1C1C1E;">Replaces line.3.horizontal</div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C7C7CC" stroke-width="1.9" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 3.5 6.5 h 17 M 3.5 12 h 17 M 3.5 17.5 h 17"></path>
+          </svg>
+          <div style="font-size: 17px; color: #C7C7CC;">&#8594;</div>
+          <svg width="26" height="26" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="4" r="2.5" fill="#C7C7CC"></circle>
+            <circle cx="12" cy="10" r="2.5" fill="#C7C7CC"></circle>
+            <circle cx="12" cy="19" r="2.5" fill="{{accent}}"></circle>
+          </svg>
+        </div>
+        <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">Same three strokes, turned into the app&#39;s own mark. The 2:3 rhythm survives the rotation.</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 12px; font-weight: 600; color: #1C1C1E;">One dot per mailbox</div>
+        <div style="display: flex; flex-direction: column; gap: 9px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="4" r="2.5" fill="{{accent}}"></circle><circle cx="12" cy="10" r="2.5" fill="#C7C7CC"></circle><circle cx="12" cy="19" r="2.5" fill="#C7C7CC"></circle></svg>
+            <div style="font-size: 13px; color: #3C3C43;">Inbox</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="4" r="2.5" fill="#C7C7CC"></circle><circle cx="12" cy="10" r="2.5" fill="{{accent}}"></circle><circle cx="12" cy="19" r="2.5" fill="#C7C7CC"></circle></svg>
+            <div style="font-size: 13px; color: #3C3C43;">Today</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="4" r="2.5" fill="#C7C7CC"></circle><circle cx="12" cy="10" r="2.5" fill="#C7C7CC"></circle><circle cx="12" cy="19" r="2.5" fill="{{accent}}"></circle></svg>
+            <div style="font-size: 13px; color: #3C3C43;">Labels</div>
+          </div>
+        </div>
+        <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">The menu already has exactly these three destinations, so the state is free.</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 12px; font-weight: 600; color: #1C1C1E;">Worth testing on device</div>
+        <div style="font-size: 12px; line-height: 1.45; color: #8A8A8E;">Three dots is iOS&#39;s overflow idiom, and this button is navigation, not more-actions. If people tap it expecting Delete and Move, the hamburger was right and the mark stays in the icon only.</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#007AFF","section":"Color","options":["#007AFF","#5856D6","#1C1C1E","#FF3B30"]},"$preview":{"width":800,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#007AFF' };
+  }
+}
+</script>
+</body>
+</html>
