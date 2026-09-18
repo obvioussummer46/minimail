@@ -53,6 +53,20 @@ jobs:
         run: make core-test
       - name: App tests
         run: make test-app
+      - name: Annotate failed tests               # annotations are readable without auth, unlike logs/artifacts
+        if: failure()
+        run: |
+          for bundle in .build/results/*.xcresult; do
+            [ -d "$bundle" ] || continue
+            xcrun xcresulttool get test-results summary --path "$bundle" | python3 -c '
+          import json, sys
+          summary = json.load(sys.stdin)
+          for failure in summary.get("testFailures", []):
+              name = failure.get("testName") or failure.get("testIdentifier", "?")
+              text = (failure.get("failureText") or "").replace("\n", " ")
+              print(f"::error::FAILED {name}: {text}")
+          ' || true
+          done
       - name: Upload results
         if: failure()
         uses: actions/upload-artifact@v4
