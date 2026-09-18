@@ -119,14 +119,21 @@ nonisolated final class LabelSyncContractTests: XCTestCase {
     private func labelViewRoutes(_ h: SyncHarness, ids: [String], nextPageToken: String?) {
         BatchStub.install(
             routes: [
-                ("GET", Self.messagesPath, [.json(200, JSONFixtures.messageList(ids: ids, nextPageToken: nextPageToken))]),
+                (
+                    "GET", Self.messagesPath,
+                    [.json(200, JSONFixtures.messageList(ids: ids, nextPageToken: nextPageToken))]
+                ),
                 ("GET", Self.labelsPath, [.json(200, labelsListBody())]),
                 ("GET", Self.historyPath, [.json(200, JSONFixtures.history(records: [], historyId: 5000))]),
             ],
             parts: BatchStub.responder(
                 messages: Dictionary(
                     uniqueKeysWithValues: ids.map {
-                        ($0, JSONFixtures.metadataMessage(id: $0, thread: $0, labels: ["Label_12"], date: 1, from: "a@example.com", subject: "S"))
+                        (
+                            $0,
+                            JSONFixtures.metadataMessage(
+                                id: $0, thread: $0, labels: ["Label_12"], date: 1, from: "a@example.com", subject: "S")
+                        )
                     }),
                 labels: ["Label_12": labelGetBody(id: "Label_12", name: "Customers/ACME", type: "user", unread: 1)]))
     }
@@ -145,10 +152,13 @@ nonisolated final class LabelSyncContractTests: XCTestCase {
         let label = try await h.db.read { try LabelRecord.fetchOne($0, key: "Label_12") }
         XCTAssertNotNil(label?.viewFetchedAt)
         XCTAssertEqual(label?.viewNextPageToken, "lp2")
-        let hasMessage = try await h.db.read { try Bool.fetchOne($0, sql: "SELECT 1 FROM message WHERE id = 'l1'") ?? false }
+        let hasMessage = try await h.db.read {
+            try Bool.fetchOne($0, sql: "SELECT 1 FROM message WHERE id = 'l1'") ?? false
+        }
         XCTAssertTrue(hasMessage)
         let hasThreadLabel = try await h.db.read {
-            try Bool.fetchOne($0, sql: "SELECT 1 FROM thread_label WHERE labelId = 'Label_12' AND threadId = 'l1'") ?? false
+            try Bool.fetchOne($0, sql: "SELECT 1 FROM thread_label WHERE labelId = 'Label_12' AND threadId = 'l1'")
+                ?? false
         }
         XCTAssertTrue(hasThreadLabel)
         h.assertInvariants()
@@ -207,7 +217,9 @@ nonisolated final class LabelSyncContractTests: XCTestCase {
         XCTAssertTrue((reqs.first?.query ?? "").contains("pageToken=lp2"))
         let token = try await h.db.read { try LabelRecord.fetchOne($0, key: "Label_12")?.viewNextPageToken }
         XCTAssertNil(token)
-        let hasMessage = try await h.db.read { try Bool.fetchOne($0, sql: "SELECT 1 FROM message WHERE id = 'l2'") ?? false }
+        let hasMessage = try await h.db.read {
+            try Bool.fetchOne($0, sql: "SELECT 1 FROM message WHERE id = 'l2'") ?? false
+        }
         XCTAssertTrue(hasMessage)
     }
 

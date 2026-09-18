@@ -185,9 +185,9 @@ nonisolated struct SystemBadgeAuthorizer: BadgeAuthorizing {
         let date =
             env.syncStatus.lastSyncAt
             ?? [info.lastDeltaSyncAtMs, info.lastFullSyncAtMs]
-                .compactMap { $0 }
-                .max()
-                .map { Date(timeIntervalSince1970: Double($0) / 1000) }
+            .compactMap { $0 }
+            .max()
+            .map { Date(timeIntervalSince1970: Double($0) / 1000) }
         return date.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "Never"
     }
 

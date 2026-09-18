@@ -49,7 +49,8 @@ nonisolated final class LabelsViewsTests: XCTestCase {
         XCTAssertEqual(LabelsModel.symbol(for: label(id: "IMPORTANT", name: "IMPORTANT", type: "system")), "bookmark")
         XCTAssertEqual(LabelsModel.symbol(for: label(id: "TRASH", name: "TRASH", type: "system")), "trash")
         XCTAssertEqual(LabelsModel.symbol(for: label(id: "CHAT", name: "CHAT", type: "system")), "tag")
-        XCTAssertNil(LabelsModel.symbol(for: label(id: "Label_12", name: "x", type: "user", backgroundColor: "#4a86e8")))
+        XCTAssertNil(
+            LabelsModel.symbol(for: label(id: "Label_12", name: "x", type: "user", backgroundColor: "#4a86e8")))
         XCTAssertEqual(LabelsModel.symbol(for: label(id: "Label_13", name: "y", type: "user")), "tag")
     }
 

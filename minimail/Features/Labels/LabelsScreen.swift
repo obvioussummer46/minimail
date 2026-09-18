@@ -123,13 +123,15 @@ private struct LabelsEmptyView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
         case .noLabels:
             ContentUnavailableView(
-                "No labels", systemImage: "tag", description: Text("Labels appear after the first sync."))
-                .accessibilityIdentifier("labels.empty")
+                "No labels", systemImage: "tag", description: Text("Labels appear after the first sync.")
+            )
+            .accessibilityIdentifier("labels.empty")
         case .unavailable:
             ContentUnavailableView(
                 "Labels unavailable", systemImage: "exclamationmark.triangle",
-                description: Text("Pull down to try again."))
-                .accessibilityIdentifier("labels.empty")
+                description: Text("Pull down to try again.")
+            )
+            .accessibilityIdentifier("labels.empty")
         }
     }
 }

@@ -218,7 +218,9 @@ private struct SettingsAdvancedSection: View {
             LabeledContent("Failed Sends", value: "\(model.info.failedSends)")
                 .accessibilityIdentifier("settings.advanced.failed")
 
-            Button { model.showsResyncConfirmation = true } label: {
+            Button {
+                model.showsResyncConfirmation = true
+            } label: {
                 HStack {
                     Label(SettingsStrings.resyncTitle, systemImage: "arrow.clockwise")
                     Spacer()

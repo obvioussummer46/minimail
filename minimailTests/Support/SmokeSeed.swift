@@ -38,7 +38,9 @@ extension TestDatabase {
                 to: [me], cc: [cc], subject: "Re: Quarterly report", topMimeType: "multipart/mixed",
                 messageID: "<m1b@example.com>", inReplyTo: "<m1a@example.com>", references: ["<m1a@example.com>"]),
             parsed(id: "m2", threadId: "t2", internalDate: now - 7_200_000, labels: ["INBOX"], subject: "Invoice 4711"),
-            parsed(id: "m3", threadId: "t3", internalDate: now - 10_800_000, labels: ["INBOX", "UNREAD"], subject: "Lunch?"),
+            parsed(
+                id: "m3", threadId: "t3", internalDate: now - 10_800_000, labels: ["INBOX", "UNREAD"], subject: "Lunch?"
+            ),
         ]
 
         try writer.write { db in

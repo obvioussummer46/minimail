@@ -102,7 +102,8 @@ nonisolated final class SmokeTests: XCTestCase {
         let vc = host(
             withEnv(
                 ComposeScreen(
-                    input: .fromMessage(mode: .replyAll, threadId: seed.openThreadId, messageId: seed.newestMessageId))))
+                    input: .fromMessage(mode: .replyAll, threadId: seed.openThreadId, messageId: seed.newestMessageId)))
+        )
         XCTAssertFalse(vc.view.subviews.isEmpty)
         XCTAssertTrue(StubURLProtocol.recorded.isEmpty)
     }
@@ -200,7 +201,8 @@ nonisolated final class SmokeTests: XCTestCase {
         _ = host(
             withEnv(
                 ComposeScreen(
-                    input: .fromMessage(mode: .replyAll, threadId: seed.openThreadId, messageId: seed.newestMessageId))))
+                    input: .fromMessage(mode: .replyAll, threadId: seed.openThreadId, messageId: seed.newestMessageId)))
+        )
         XCTAssertTrue(StubURLProtocol.recorded.isEmpty)
     }
 

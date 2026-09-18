@@ -88,7 +88,8 @@ final class SanitizerTests: XCTestCase {
     }
 
     func testStyleBlockScopedToMessage() throws {
-        let css = "body{color:red} html, .a > b{margin:0} @media (max-width:600px){.c{display:none}} "
+        let css =
+            "body{color:red} html, .a > b{margin:0} @media (max-width:600px){.c{display:none}} "
             + "@keyframes k{from{opacity:0}} @font-face{font-family:X} p{x:y}"
         let body = try Sanitizer.sanitize(html: "<style>\(css)</style><p class=\"c\">x</p>", messageId: "m1")
         let scope = ".mm-msg[data-id=\"m1\"] .mm-body"
