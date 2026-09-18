@@ -54,14 +54,14 @@ jobs:
       - name: App tests
         run: |
           set -o pipefail
-          make test-app 2>&1 | tee /tmp/test-app.log
+          make test-app XCB=cat 2>&1 | tee /tmp/test-app.log | tail -n 200
       - name: Annotate failed tests               # annotations are readable without auth, unlike logs/artifacts
         if: failure()
         run: |
-          tail -c 3000 /tmp/test-app.log | python3 -c '
+          grep -E "error:|xcodebuild: error|Testing failed|Test Case .* failed|Test Suite .* failed|Fatal|failed to|Assertion" /tmp/test-app.log | tail -n 30 | python3 -c '
           import sys
           text = sys.stdin.read().replace("%", "%25").replace("\r", "").replace("\n", "%0A")
-          print(f"::error::TEST-APP OUTPUT TAIL: {text}")
+          print(f"::error::TEST-APP ERRORS: {text[:3500]}")
           ' || true
           for bundle in .build/results/*.xcresult; do
             [ -d "$bundle" ] || continue
