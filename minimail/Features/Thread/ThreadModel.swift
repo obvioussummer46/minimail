@@ -95,10 +95,11 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     /// True when this screen paints native text instead of handing the document to `MailWebView`.
     var rendersAsPlainText: Bool { env.settings.settings.plainTextBodies && !showsRenderedOverride }
 
-    /// The text projection, built only when it is what the screen shows.
+    /// The text projection, built only when it is what the screen shows. Newest first, like the rendered
+    /// document: only the emitted order is reversed, `detail.messages` stays internalDate-ascending.
     var plainMessages: [ThreadPlainMessage] {
         guard let detail else { return [] }
-        return detail.messages.map { message in
+        return detail.messages.reversed().map { message in
             let body = detail.bodies[message.id]
             return ThreadPlainMessage(
                 id: message.id,

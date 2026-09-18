@@ -671,6 +671,19 @@ nonisolated final class ThreadModelTests: XCTestCase {
         XCTAssertEqual(model.plainMessages.map(\.id), ["m1"])
     }
 
+    /// Plain-text mode lists the newest message first, matching the rendered document's order.
+    @MainActor
+    func testPlainMessagesNewestFirst() throws {
+        env.settings.update { $0.plainTextBodies = true }
+        try seed([message("m1", offset: 1_000), message("m2", offset: 2_000), message("m3", offset: 3_000)])
+        model = ThreadModel(env: env, threadId: "t1")
+
+        XCTAssertEqual(model.plainMessages.map(\.id), ["m3", "m2", "m1"])
+        // Display order is reversed for rendering only; the model's message list stays ascending.
+        XCTAssertEqual(model.detail?.messages.map(\.id), ["m1", "m2", "m3"])
+        XCTAssertEqual(model.newestMessageId, "m3")
+    }
+
     @MainActor
     func testPlainMessagesCarryBodyTextOnlyWhenExpanded() throws {
         env.settings.update { $0.plainTextBodies = true }
