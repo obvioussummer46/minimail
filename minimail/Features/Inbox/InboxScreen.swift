@@ -107,7 +107,7 @@ private struct InboxListView: View {
             ToolbarItem(placement: .topBarLeading) {
                 // Always-visible mailbox switcher: the title menu's affordance only appears once the large title
                 // collapses on scroll, so an empty Today (nothing to scroll) would otherwise trap the user.
-                // Its label is the app mark (`MailboxDots`), whose filled dot doubles as the active scope.
+                // Its label is the app mark (`MailboxDots`); the active scope is the accessibility value.
                 Menu {
                     Button {
                         model.setScope(.inbox)
@@ -126,7 +126,7 @@ private struct InboxListView: View {
                         Label("Labels…", systemImage: "tag")
                     }
                 } label: {
-                    MailboxDots(active: MailboxDots.Slot(scope: model.scope))
+                    MailboxDots()
                 }
                 .accessibilityLabel("Mailboxes")
                 .accessibilityValue(mailboxValue)

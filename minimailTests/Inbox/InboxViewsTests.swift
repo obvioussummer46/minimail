@@ -81,10 +81,9 @@ nonisolated final class InboxViewsTests: XCTestCase {
         XCTAssertNotEqual(ActiveSheet.labels, ActiveSheet.settings)
     }
 
-    func testMailboxDotsSlotFollowsScope() {
-        XCTAssertEqual(MailboxDots.Slot(scope: .inbox), .inbox)
-        XCTAssertEqual(MailboxDots.Slot(scope: .today), .today)
-        XCTAssertEqual(MailboxDots.Slot(scope: .label(id: "Label_12")), .labels)
+    func testMailboxDotsAccentTheLastDotLikeTheIcon() {
+        // The icon paints the third tittle in the accent; the toolbar mark must match it, not the scope.
+        XCTAssertEqual(MailboxDots.accentIndex, MailboxDots.centers.count - 1)
     }
 
     func testMailboxDotsKeepsTheWordmarkRhythm() {
