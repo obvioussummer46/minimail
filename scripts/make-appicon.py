@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Render AppIcon.png from the three-dot mark.
+"""Render the app icon from the three-dot mark.
+
+Two outputs share the geometry below: AppIcon.png, the flat 1024 px rendering in
+the asset catalog, and the vector layers of minimail.icon, the Icon Composer
+bundle the build uses. The layers have the glass effect off, so iOS 26 draws the
+dots round instead of lighting a flat bitmap. actool renders the iOS 17 and 18
+bitmaps from the bundle as well; AppIcon.png is compiled in only if
+ASSETCATALOG_COMPILER_APPICON_NAME in project.yml points back at AppIcon.
 
 The mark is minimail's wordmark reduced to its three tittles. minimal carries
 two; minimail carries three, and the one the name gained takes the accent --
@@ -12,7 +19,7 @@ what would turn the mark into a loading indicator.
 Authored on a 240-unit grid (the canvas in docs/logo) and scaled to 1024. The
 PNG is opaque and square with no corner rounding: iOS applies the mask itself.
 
-Usage: python3 scripts/make-appicon.py [out.png]
+Usage: python3 scripts/make-appicon.py [out.png [layer-dir]]
 """
 
 import struct
@@ -90,9 +97,29 @@ def write_png(path, rows):
         )
 
 
+def write_svg(path, dots):
+    """Some of the dots on a transparent canvas; minimail.icon's fill supplies the field."""
+    circles = "".join(
+        '  <circle cx="{:g}" cy="{:g}" r="{:g}" fill="#{:02X}{:02X}{:02X}"/>\n'.format(
+            gx * SCALE, gy * SCALE, gr * SCALE, *colour
+        )
+        for (gx, gy, gr), colour in dots
+    )
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{SIZE}" height="{SIZE}"'
+            f' viewBox="0 0 {SIZE} {SIZE}">\n{circles}</svg>\n'
+        )
+
+
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else (
         "minimail/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
     )
+    layers = sys.argv[2] if len(sys.argv) > 2 else "minimail/Resources/minimail.icon/Assets"
     write_png(out, render())
     print(f"wrote {out} ({SIZE}x{SIZE})")
+    # The accent dot is its own layer so icon.json can give it the dark accent.
+    for name, colour in (("dots-idle.svg", DOT_IDLE), ("dot-accent.svg", DOT_ACCENT)):
+        write_svg(f"{layers}/{name}", [dot for dot in DOTS if dot[1] == colour])
+        print(f"wrote {layers}/{name}")
