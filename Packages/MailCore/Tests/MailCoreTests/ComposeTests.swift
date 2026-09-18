@@ -141,7 +141,9 @@ final class OutgoingBodiesTests: XCTestCase {
             signatureHTML: "<b>Max</b>",
             quoteHTML: "<div class=\"gmail_quote\">q</div>"
         )
-        XCTAssertTrue(html.contains("gmail_signature_prefix"))
+        // The signature starts directly — no "-- " separator line.
+        XCTAssertFalse(html.contains("gmail_signature_prefix"))
+        XCTAssertTrue(html.contains("gmail_signature"))
         XCTAssertTrue(html.contains("<b>Max</b>"))
         XCTAssertTrue(html.hasSuffix("<br><div class=\"gmail_quote\">q</div>"))
     }
@@ -165,7 +167,7 @@ final class OutgoingBodiesTests: XCTestCase {
                 signatureText: "Max Mustermann\nExample GmbH",
                 quoteText: "On … wrote:\n> Hallo"
             ),
-            "Hallo Alice,\n\nja.\n\nViele Grüße\nMax\n\n-- \nMax Mustermann\nExample GmbH\n\nOn … wrote:\n> Hallo"
+            "Hallo Alice,\n\nja.\n\nViele Grüße\nMax\n\nMax Mustermann\nExample GmbH\n\nOn … wrote:\n> Hallo"
         )
         XCTAssertEqual(
             OutgoingBodies.text(typed: "Hi\n\n", signatureText: nil, quoteText: nil),

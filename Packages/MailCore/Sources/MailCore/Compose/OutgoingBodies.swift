@@ -30,7 +30,7 @@ public enum OutgoingBodies {
         var out = opening + lines.joined() + "</div>"
 
         if let signatureHTML, !signatureHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            out += "<div><br></div><span class=\"gmail_signature_prefix\">-- </span><br>"
+            out += "<div><br></div>"
             out += "<div dir=\"ltr\" class=\"gmail_signature\" data-smartmail=\"gmail_signature\">"
             out += "<div style=\"\(style.inlineCSS)\">\(signatureHTML)</div></div>"
         }
@@ -46,7 +46,7 @@ public enum OutgoingBodies {
         "<html><head><meta charset=\"utf-8\"></head><body>" + bodyFragment + "</body></html>"
     }
 
-    /// Typed text, then the `-- ` signature separator, then the quote, each separated by a blank line.
+    /// Typed text, then the signature (no `-- ` separator), then the quote, each separated by a blank line.
     public static func text(typed: String, signatureText: String?, quoteText: String?) -> String {
         var body = typed.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
@@ -57,7 +57,7 @@ public enum OutgoingBodies {
             var signature = signatureText
             while signature.hasSuffix("\n") { signature.removeLast() }
             if !signature.isEmpty {
-                parts += ["", "-- ", signature]
+                parts += ["", signature]
             }
         }
         if let quoteText, !quoteText.isEmpty {
