@@ -40,12 +40,22 @@ struct MailActions {
             Log.outbox.error("enqueueSend failed")
             return
         }
-        var bgTask = UIBackgroundTaskIdentifier.invalid
-        bgTask = UIApplication.shared.beginBackgroundTask(withName: "com.minimail.send") {
-            UIApplication.shared.endBackgroundTask(bgTask)
+        let bgTask = BackgroundTask()
+        bgTask.id = UIApplication.shared.beginBackgroundTask(withName: "com.minimail.send") {
+            bgTask.end()
         }
         await outbox.drain()
-        if bgTask != .invalid { UIApplication.shared.endBackgroundTask(bgTask) }
+        bgTask.end()
+    }
+
+    /// Boxes the identifier so the expiration handler and the normal path can each end the task once.
+    @MainActor private final class BackgroundTask {
+        var id = UIBackgroundTaskIdentifier.invalid
+        func end() {
+            guard id != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(id)
+            id = .invalid
+        }
     }
 
     private static func nowMs() -> Int64 { Int64(Date().timeIntervalSince1970 * 1000) }

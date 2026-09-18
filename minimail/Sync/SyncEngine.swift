@@ -665,7 +665,7 @@ actor SyncEngine {
 
     func refreshLabelCounts(force: Bool) async {
         guard case .signedIn = await auth.state else { return }
-        if !force, let raw = try? await readState(.lastLabelCountsAt), let at = Int64(raw ?? ""),
+        if !force, let raw = try? await readState(.lastLabelCountsAt), let at = Int64(raw),
             Double(nowMs() - at) / 1000 < Self.labelCountsStaleness
         {
             return

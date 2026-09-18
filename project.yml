@@ -61,6 +61,7 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         UILaunchScreen: { UIColorName: LaunchBackground }   # theme-matched colour asset → no white flash
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIRequiresFullScreen: true          # portrait-only is allowed only for full-screen apps
         UIApplicationSceneManifest: { UIApplicationSupportsMultipleScenes: false }
         ITSAppUsesNonExemptEncryption: false
         BGTaskSchedulerPermittedIdentifiers: [com.minimail.refresh]
