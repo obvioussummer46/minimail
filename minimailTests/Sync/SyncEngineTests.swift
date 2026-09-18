@@ -262,4 +262,101 @@ nonisolated final class SyncEngineTests: XCTestCase {
         XCTAssertEqual(historyRequests, 2)
         XCTAssertEqual(h.status.lastRunReason, .pullToRefresh)
     }
+
+    // MARK: - Plain-text body preload
+
+    private func emptyDeltaRoute() -> (String, String, [StubURLProtocol.Response]) {
+        ("GET", "/gmail/v1/users/me/history", [.json(200, JSONFixtures.history(records: [], historyId: 1001))])
+    }
+
+    private func threadRoute(_ id: String, body: String) -> (String, String, [StubURLProtocol.Response]) {
+        (
+            "GET", "/gmail/v1/users/me/threads/\(id)",
+            [
+                .json(
+                    200,
+                    JSONFixtures.thread(
+                        id: id,
+                        messages: [
+                            JSONFixtures.fullMessage(
+                                id: id, thread: id, labels: ["INBOX", "UNREAD"], date: 1_757_580_000_000,
+                                html: body, text: nil)
+                        ]))
+            ]
+        )
+    }
+
+    @MainActor
+    func testPreloadLoadsInboxThreadsInPlainTextMode() async throws {
+        let h = try SyncHarness()
+        h.setSettings { $0.plainTextBodies = true }
+        try h.seedSyncState(historyId: 1000)
+        try h.seed([msg("a1"), msg("a2")], complete: false)
+        BatchStub.install(
+            routes: [emptyDeltaRoute(), threadRoute("a1", body: "<p>One</p>"), threadRoute("a2", body: "<p>Two</p>")],
+            parts: BatchStub.responder())
+
+        await h.sync.run(.afterSend)
+
+        XCTAssertEqual(try h.message("a1")?.bodyState, 1)
+        XCTAssertEqual(try h.message("a2")?.bodyState, 1)
+        XCTAssertEqual(try h.thread("a1")?.isComplete, true)
+        XCTAssertEqual(try h.thread("a2")?.isComplete, true)
+        h.assertInvariants()
+    }
+
+    @MainActor
+    func testPreloadSkippedWhenPlainTextOff() async throws {
+        let h = try SyncHarness()
+        try h.seedSyncState(historyId: 1000)
+        try h.seed([msg("a1")], complete: false)
+        BatchStub.install(routes: [emptyDeltaRoute()], parts: BatchStub.responder())
+
+        await h.sync.run(.afterSend)
+
+        XCTAssertEqual(try h.message("a1")?.bodyState, 0)
+        XCTAssertEqual(try h.thread("a1")?.isComplete, false)
+    }
+
+    @MainActor
+    func testPreloadSkippedInLowPowerMode() async throws {
+        let h = try SyncHarness()
+        h.setSettings { $0.plainTextBodies = true }
+        h.setLowPower(true)
+        try h.seedSyncState(historyId: 1000)
+        try h.seed([msg("a1")], complete: false)
+        BatchStub.install(routes: [emptyDeltaRoute()], parts: BatchStub.responder())
+
+        await h.sync.run(.afterSend)
+
+        XCTAssertEqual(try h.message("a1")?.bodyState, 0)
+    }
+
+    @MainActor
+    func testPreloadSkippedOnBackgroundSync() async throws {
+        let h = try SyncHarness()
+        h.setSettings { $0.plainTextBodies = true }
+        try h.seedSyncState(historyId: 1000)
+        try h.seed([msg("a1")], complete: false)
+        BatchStub.install(routes: [emptyDeltaRoute()], parts: BatchStub.responder())
+
+        await h.sync.run(.background)
+
+        XCTAssertEqual(try h.message("a1")?.bodyState, 0)
+    }
+
+    /// Newest inbox threads first, capped, and non-inbox or already-complete threads excluded.
+    @MainActor
+    func testPreloadCandidatesQuery() async throws {
+        let h = try SyncHarness()
+        try h.seed(
+            [
+                msg("a1", date: 1_000), msg("a2", date: 2_000), msg("a3", date: 3_000),
+                msg("b1", labels: ["UNREAD"], date: 4_000),
+            ], complete: false)
+        try await h.db.write { try ThreadRepository.markComplete($0, threadId: "a1", complete: true) }
+
+        let ids = try await h.db.read { try ThreadRepository.preloadCandidates($0, limit: 2).map(\.id) }
+        XCTAssertEqual(ids, ["a3", "a2"])
+    }
 }

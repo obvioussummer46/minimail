@@ -259,6 +259,7 @@ nonisolated func msg(
     let sleepRecorder = Recorder<TimeInterval>()
     let clientSleepRecorder = Recorder<TimeInterval>()
     private let settingsBox = OSAllocatedUnfairLock<Settings>(initialState: Settings())
+    private let lowPowerBox = OSAllocatedUnfairLock<Bool>(initialState: false)
 
     var now: Date { clockBox.now }
     var badgeCalls: [Int] { badgeRecorder.values }
@@ -297,10 +298,12 @@ nonisolated func msg(
             sleep: { sleeps.record($0) })
         let box = settingsBox
         let badge = badgeRecorder
+        let lowPower = lowPowerBox
         sync = SyncEngine(
             db: db, gmail: gmail, outbox: outbox, status: status,
             settings: { box.withLock { $0 } }, auth: auth,
-            clock: { clock.now }, badge: { badge.record($0) })
+            clock: { clock.now }, badge: { badge.record($0) },
+            lowPowerMode: { lowPower.withLock { $0 } })
         outbox.bind(sync: sync)
         actions = MailActions(db: db, outbox: outbox, sync: sync)
     }
@@ -312,6 +315,8 @@ nonisolated func msg(
     }
 
     func advance(seconds: TimeInterval) { clockBox.advance(seconds) }
+
+    func setLowPower(_ on: Bool) { lowPowerBox.withLock { $0 = on } }
 
     func seed(_ messages: [ParsedMessage], selfAddresses: Set<String> = ["me@example.com"], complete: Bool = true)
         throws

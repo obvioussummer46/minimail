@@ -56,6 +56,20 @@ nonisolated enum ThreadRepository {
         try db.execute(sql: "UPDATE thread SET isComplete = ? WHERE id = ?", arguments: [complete, threadId])
     }
 
+    /// Newest inbox threads still needing body work — never opened (`isComplete = 0`) or with bodies missing —
+    /// as (id, messageCount), newest first. Feeds the plain-text preload.
+    static func preloadCandidates(_ db: Database, limit: Int) throws -> [(id: String, messageCount: Int)] {
+        try Row.fetchAll(
+            db,
+            sql: """
+                SELECT id, messageCount FROM thread
+                WHERE inInbox = 1 AND (isComplete = 0 OR bodiesMissing > 0)
+                ORDER BY lastDate DESC LIMIT ?
+                """,
+            arguments: [limit]
+        ).map { ($0["id"], $0["messageCount"]) }
+    }
+
     /// ALL message ids of the thread (hidden included), internalDate ASC, id ASC.
     static func messageIds(_ db: Database, threadId: String) throws -> [String] {
         try String.fetchAll(

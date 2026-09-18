@@ -46,6 +46,10 @@ actor SyncEngine {
     nonisolated static let foregroundThrottle: TimeInterval = 60
     nonisolated static let labelViewMaxAge: TimeInterval = 86_400
     nonisolated static let maxHistoryRecords = 5_000
+    /// Plain-text preload bounds: how many of the newest inbox threads are considered per run, and the soft
+    /// cap on messages fetched (a thread is never split; the cap stops before the next one starts).
+    nonisolated static let preloadThreadLimit = 25
+    nonisolated static let preloadMessageCap = 50
 
     private var db: any DatabaseWriter
     private let gmail: GmailClient
@@ -55,6 +59,7 @@ actor SyncEngine {
     private let auth: AuthStore
     private let clock: @Sendable () -> Date
     private let badge: @Sendable (Int) async -> Void
+    private let lowPowerMode: @Sendable () -> Bool
 
     private var running = false
     private var rerunRequested = false
@@ -70,7 +75,8 @@ actor SyncEngine {
         db: any DatabaseWriter, gmail: GmailClient, outbox: Outbox, status: SyncStatus,
         settings: @escaping @Sendable () async -> Settings, auth: AuthStore,
         clock: @escaping @Sendable () -> Date = Date.init,
-        badge: @escaping @Sendable (Int) async -> Void = SyncEngine.systemBadge
+        badge: @escaping @Sendable (Int) async -> Void = SyncEngine.systemBadge,
+        lowPowerMode: @escaping @Sendable () -> Bool = { ProcessInfo.processInfo.isLowPowerModeEnabled }
     ) {
         self.db = db
         self.gmail = gmail
@@ -80,6 +86,7 @@ actor SyncEngine {
         self.auth = auth
         self.clock = clock
         self.badge = badge
+        self.lowPowerMode = lowPowerMode
     }
 
     // MARK: run — single flight
@@ -150,7 +157,10 @@ actor SyncEngine {
                 $0.lastError = nil
                 $0.lastSyncAt = self.clock()
             }
-            if reason != .background { await Maintenance.cleanup(db, now: clock()) }
+            if reason != .background {
+                await preloadBodies()
+                await Maintenance.cleanup(db, now: clock())
+            }
         } catch SyncError.paused {
         } catch SyncError.cancelled {
         } catch SyncError.rateLimitAbort {
@@ -423,6 +433,32 @@ actor SyncEngine {
         threadLoads[threadId] = task
         defer { threadLoads[threadId] = nil }
         try await task.value
+    }
+
+    /// Prefetches the newest inbox threads that still need bodies, so plain-text mode — whose entire open
+    /// latency is the body fetch — opens threads instantly. Runs only after foreground syncs: the radio is
+    /// already up from the sync that just finished, so the marginal energy cost is the bytes, while background
+    /// windows are system-budgeted. Skipped in Low Power Mode. Goes through `ensureThreadLoaded`, so threads
+    /// are marked complete and a user opening one mid-preload joins the running load instead of double-fetching.
+    /// Best-effort: the first error ends the preload, never the run.
+    private func preloadBodies() async {
+        guard await settings().plainTextBodies, !lowPowerMode() else { return }
+        do {
+            let candidates = try await db.read {
+                try ThreadRepository.preloadCandidates($0, limit: Self.preloadThreadLimit)
+            }
+            var budget = Self.preloadMessageCap
+            for candidate in candidates {
+                guard budget > 0 else { break }
+                // A queued sync outranks warming caches; it will preload the rest when it finishes.
+                if rerunRequested { break }
+                try checkpoint()
+                budget -= max(candidate.messageCount, 1)
+                try await ensureThreadLoaded(threadId: candidate.id)
+            }
+        } catch {
+            Log.sync.notice("preload ended: \(String(describing: error), privacy: .public)")
+        }
     }
 
     private func loadThread(_ threadId: String) async throws {
