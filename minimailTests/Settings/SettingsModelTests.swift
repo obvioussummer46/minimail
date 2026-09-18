@@ -256,7 +256,7 @@ nonisolated final class SettingsModelTests: XCTestCase {
 }
 
 /// Records what `SettingsModel` asks of the badge system so the matrix can be checked deterministically.
-private final class StubBadge: BadgeAuthorizing {
+@MainActor private final class StubBadge: BadgeAuthorizing {
     private let grantResult: Bool
     private let enabledResult: Bool
     private(set) var requests = 0
