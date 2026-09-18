@@ -61,8 +61,8 @@ final class PlainTextBodyTests: XCTestCase {
     func testTidyingDoesNotDisturbRunOrder() {
         let body = PlainTextBody.make(
             html: "<p>  </p><p>a</p><p></p><p></p><a href=\"https://e.com\">b</a><p>c</p><p>  </p>")
-        XCTAssertEqual(body.plain, "a\n\nbc")
-        XCTAssertEqual(body.runs, [.text("a\n\n"), .link(text: "b", url: "https://e.com"), .text("c")])
+        XCTAssertEqual(body.plain, "a\n\nb\nc")
+        XCTAssertEqual(body.runs, [.text("a\n\n"), .link(text: "b", url: "https://e.com"), .text("\nc")])
     }
 
     func testPlainTextInputIsTidiedNotEscaped() {

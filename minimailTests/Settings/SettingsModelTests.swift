@@ -55,11 +55,14 @@ nonisolated final class SettingsModelTests: XCTestCase {
     @MainActor
     func testLoadReadsSyncStateAndOutboxCounts() async throws {
         try await seedSyncState()
-        try TestDatabase.seed(env.db, [TestDatabase.parsed(id: "m1", threadId: "t1", internalDate: Self.seedNow, labels: ["INBOX", "UNREAD"])])
+        try TestDatabase.seed(
+            env.db,
+            [TestDatabase.parsed(id: "m1", threadId: "t1", internalDate: Self.seedNow, labels: ["INBOX", "UNREAD"])])
         let job = sendJob()
         try await env.db.write { db in
             _ = try OutboxRepository.enqueueModify(
-                db, threadId: "t1", delta: LabelDelta(remove: ["UNREAD"]), affectedMessageIds: ["m1"], now: Self.seedNow)
+                db, threadId: "t1", delta: LabelDelta(remove: ["UNREAD"]), affectedMessageIds: ["m1"], now: Self.seedNow
+            )
             let opId = try OutboxRepository.enqueueSend(db, job: job, now: Self.seedNow)
             try OutboxRepository.fail(db, opId: opId, error: "boom")
         }
@@ -102,7 +105,7 @@ nonisolated final class SettingsModelTests: XCTestCase {
         let stub = StubBadge(grantResult: true)
         let model = SettingsModel(env: env, badge: stub)
         await model.setBadgeEnabled(true)
-        let requests = await stub.requests
+        let requests = stub.requests
         XCTAssertEqual(requests, 1)
         XCTAssertTrue(env.settings.snapshot.showBadge)
         XCTAssertEqual(model.badgeState, .idle)
@@ -115,7 +118,7 @@ nonisolated final class SettingsModelTests: XCTestCase {
         await model.setBadgeEnabled(true)
         XCTAssertFalse(env.settings.snapshot.showBadge)
         XCTAssertEqual(model.badgeState, .denied)
-        let counts = await stub.badgeCounts
+        let counts = stub.badgeCounts
         XCTAssertTrue(counts.isEmpty)
     }
 
@@ -126,10 +129,10 @@ nonisolated final class SettingsModelTests: XCTestCase {
         let model = SettingsModel(env: env, badge: stub)
         await model.setBadgeEnabled(false)
         XCTAssertFalse(env.settings.snapshot.showBadge)
-        let counts = await stub.badgeCounts
+        let counts = stub.badgeCounts
         XCTAssertEqual(counts, [0])
         XCTAssertEqual(model.badgeState, .idle)
-        let requests = await stub.requests
+        let requests = stub.requests
         XCTAssertEqual(requests, 0)
     }
 
@@ -141,7 +144,7 @@ nonisolated final class SettingsModelTests: XCTestCase {
         await model.verifyBadgeAuthorization()
         XCTAssertTrue(env.settings.snapshot.showBadge)
         XCTAssertEqual(model.badgeState, .idle)
-        let checks = await stub.enabledChecks
+        let checks = stub.enabledChecks
         XCTAssertEqual(checks, 1)
     }
 
@@ -153,7 +156,7 @@ nonisolated final class SettingsModelTests: XCTestCase {
         await model.verifyBadgeAuthorization()
         XCTAssertFalse(env.settings.snapshot.showBadge)
         XCTAssertEqual(model.badgeState, .denied)
-        let counts = await stub.badgeCounts
+        let counts = stub.badgeCounts
         XCTAssertEqual(counts, [0])
     }
 
@@ -162,7 +165,7 @@ nonisolated final class SettingsModelTests: XCTestCase {
         let stub = StubBadge()
         let model = SettingsModel(env: env, badge: stub)
         await model.verifyBadgeAuthorization()
-        let checks = await stub.enabledChecks
+        let checks = stub.enabledChecks
         XCTAssertEqual(checks, 0)
         XCTAssertEqual(model.badgeState, .idle)
     }
@@ -253,7 +256,7 @@ nonisolated final class SettingsModelTests: XCTestCase {
 }
 
 /// Records what `SettingsModel` asks of the badge system so the matrix can be checked deterministically.
-private actor StubBadge: BadgeAuthorizing {
+private final class StubBadge: BadgeAuthorizing {
     private let grantResult: Bool
     private let enabledResult: Bool
     private(set) var requests = 0
