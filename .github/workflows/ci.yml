@@ -52,10 +52,17 @@ jobs:
       - name: Package tests on macOS (safety net for the Linux job)
         run: make core-test
       - name: App tests
-        run: make test-app
+        run: |
+          set -o pipefail
+          make test-app 2>&1 | tee /tmp/test-app.log
       - name: Annotate failed tests               # annotations are readable without auth, unlike logs/artifacts
         if: failure()
         run: |
+          tail -c 3000 /tmp/test-app.log | python3 -c '
+          import sys
+          text = sys.stdin.read().replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+          print(f"::error::TEST-APP OUTPUT TAIL: {text}")
+          ' || true
           for bundle in .build/results/*.xcresult; do
             [ -d "$bundle" ] || continue
             xcrun xcresulttool get test-results summary --path "$bundle" | python3 -c '
