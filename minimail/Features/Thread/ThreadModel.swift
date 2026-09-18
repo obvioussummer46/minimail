@@ -438,6 +438,17 @@ nonisolated enum ThreadAction: String, CaseIterable, Sendable {
     }
 
     func toggle(messageId: String) {
+        // Text mode never builds the document, so there is no `renderKey` and no script to run: flipping
+        // `expanded` is the whole job (`plainMessages` recomputes from it).
+        if rendersAsPlainText {
+            guard detail?.messages.contains(where: { $0.id == messageId }) == true else { return }
+            if expanded.contains(messageId) {
+                expanded.remove(messageId)
+            } else {
+                expanded.insert(messageId)
+            }
+            return
+        }
         guard var key = renderKey, let index = key.messages.firstIndex(where: { $0.id == messageId }) else {
             return
         }
